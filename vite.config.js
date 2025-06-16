@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
     },
     base: env.VITE_BASE_NAME ? `/${env.VITE_BASE_NAME}/` : '/',
     build: {
-      outDir: 'dist',
+      outDir: 'docs',
       assetsDir: 'assets',
       sourcemap: true,
     },
