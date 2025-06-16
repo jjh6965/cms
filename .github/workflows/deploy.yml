@@ -30,26 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify .env.production
-        run: |
-          ls -la .env.production || echo ".env.production not found"
-          cat .env.production || echo "Failed to read .env.production"
-          echo "VITE_BASE_NAME from file: $(grep VITE_BASE_NAME .env.production)"
-
       - name: Build
-        run: npm run build || echo "Build failed"
-
-      - name: Debug build output
-        run: |
-          ls -la
-          ls -la dist || echo "dist folder not found"
-          cat dist/index.html || echo "index.html not found"
-          find dist -type f
-          echo "VITE_BASE_NAME: ${VITE_BASE_NAME}"
-          echo "VITE_CLIENT_URL: ${VITE_CLIENT_URL}"
+        run: npm run build
 
       - name: Create 404.html
-        run: cp dist/index.html dist/404.html || echo "Failed to copy index.html to 404.html"
+        run: cp dist/index.html dist/404.html
 
       - name: Add .nojekyll
         run: touch dist/.nojekyll
@@ -59,5 +44,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          publish_branch: gh-pages
           force_orphan: true
