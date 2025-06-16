@@ -34,14 +34,14 @@ jobs:
         run: npm run build -- --mode production
 
       - name: Create 404.html
-        run: cp docs/index.html docs/404.html
+        run: cp dist/index.html dist/404.html
 
       - name: Add .nojekyll
-        run: touch docs/.nojekyll
+        run: touch dist/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          publish_dir: ./dist
           force_orphan: true
