@@ -71,19 +71,10 @@ const LoginHistory = () => {
             row: 1,
             label: "월 선택",
             labelVisible: true,
-            options: [
-              { value: todayMonth, label: todayMonth }, // 현재 월(2025-06)을 첫 번째로
-              ...Array.from({ length: today.getMonth() }, (_, i) => {
-                const month = (today.getMonth() - i).toString().padStart(2, "0"); // 역순으로 이전 월
-                return { value: `2025-${month}`, label: `2025-${month}` };
-              }),
-              ...Array.from({ length: 12 - today.getMonth() - 1 }, (_, i) => {
-                const month = (today.getMonth() + 1 + i + 1).toString().padStart(2, "0"); // 이후 월
-                return { value: `2025-${month}`, label: `2025-${month}` };
-              }),
-            ].filter(
-              (item, index, self) => index === self.findIndex((t) => t.value === item.value) // 중복 제거
-            ),
+            options: Array.from({ length: 12 }, (_, i) => {
+              const month = (i + 1).toString().padStart(2, "0");
+              return { value: `2025-${month}`, label: `2025-${month}` };
+            }),
             width: "200px",
             height: "30px",
             backgroundColor: "#ffffff",
@@ -91,12 +82,6 @@ const LoginHistory = () => {
             enabled: true,
             defaultValue: todayMonth,
           },
-        ],
-      },
-      // 수정: searchBtn을 buttons 영역으로 이동하여 우측 끝 배치 (UserAuthManage.jsx 참고)
-      {
-        type: "buttons",
-        fields: [
           {
             id: "searchBtn",
             type: "button",
@@ -110,26 +95,25 @@ const LoginHistory = () => {
             enabled: true,
             labelVisible: false,
           },
-          // 초기화 버튼
-          // {
-          //   id: "resetBtn",
-          //   type: "button",
-          //   row: 1,
-          //   label: "초기화",
-          //   eventType: "reset",
-          //   width: "80px",
-          //   height: "30px",
-          //   backgroundColor: "#00c4b4",
-          //   color: "#ffffff",
-          //   enabled: true,
-          //   labelVisible: false,
-          // },
+          {
+            id: "resetBtn",
+            type: "button",
+            row: 1,
+            label: "초기화",
+            eventType: "reset",
+            width: "80px",
+            height: "30px",
+            backgroundColor: "#00c4b4",
+            color: "#ffffff",
+            enabled: true,
+            labelVisible: false,
+          },
         ],
       },
     ],
   };
 
-  // 수정: filterTableFields를 columns에 맞게 조정
+  // 기존 필터 설정 유지
   const filterTableFields = [
     {
       id: "filterSelect",
@@ -137,12 +121,10 @@ const LoginHistory = () => {
       label: "",
       options: [
         { value: "", label: "선택" },
-        { value: "MONTH", label: "월" },
-        { value: "DATE", label: "일자" },
-        { value: "EMPNO", label: "사원번호" },
-        { value: "EMPNM", label: "이름" },
-        { value: "USERIP", label: "사용자IP" },
-        { value: "LOGIN_STATUS", label: "구분(Web/Mobile)" },
+        { value: "EMPLOYEE_NO", label: "사원번호" },
+        { value: "EMPLOYEE_NAME", label: "이름" },
+        { value: "LOGIN_DATE", label: "로그인 날짜" },
+        { value: "ACCESS_TYPE", label: "구분(Web/Mobile)" },
       ],
       width: "default",
       height: "default",
@@ -176,19 +158,14 @@ const LoginHistory = () => {
     if (!user || !hasPermission(user.auth, "loginHistory")) navigate("/");
   }, [user, navigate]);
 
-  // columns css 정렬
+  // 중앙 정렬 수정 유지
   const columns = [
     { title: "월", field: "MONTH", width: 100, headerHozAlign: "center", hozAlign: "center" },
-    { title: "일자", field: "DATE", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "사원번호", field: "EMPNO", width: 120, headerHozAlign: "center", hozAlign: "center" },
-    { title: "이름", field: "EMPNM", width: 120, headerHozAlign: "center", hozAlign: "center" },
-    { title: "사용자IP", field: "USERIP", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "구분(Web/Mobile)", field: "LOGIN_STATUS", width: 150, headerHozAlign: "center", hozAlign: "center", 
-      formatter: (cell) => { // w를 Web, m을 Mobile로 변환
-      const value = cell.getValue();
-      // 대소문자 확인 필요
-      return value === "W" ? "Web" : value === "M" ? "Mobile" : value; }
-    }
+    { title: "일자", field: "LOGIN_DATE", width: 150, headerHozAlign: "center", hozAlign: "center" }, // 수정: hozAlign을 "center"로 변경
+    { title: "사원번호", field: "EMPLOYEE_NO", width: 120, headerHozAlign: "center", hozAlign: "center" },
+    { title: "이름", field: "EMPLOYEE_NAME", width: 120, headerHozAlign: "center", hozAlign: "center" }, // 수정: hozAlign을 "center"로 변경
+    { title: "사용자IP", field: "USER_IP", width: 150, headerHozAlign: "center", hozAlign: "center" }, // 수정: hozAlign을 "center"로 변경
+    { title: "구분(Web/Mobile)", field: "ACCESS_TYPE", width: 150, headerHozAlign: "center", hozAlign: "center" }, // 수정: hozAlign을 "center"로 변경
   ];
 
   // 수정: columns 기반 동적 필터 필드 생성
@@ -241,13 +218,15 @@ const LoginHistory = () => {
           console.warn("Received vQuery instead of data:", item.vQuery);
           return {};
         }
+        // 날짜 수정: login_date를 명확히 "YYYY-MM-DD" 형식으로 변환
+        const loginDate = item.login_date ? new Date(item.login_date).toISOString().split("T")[0] : "";
         return {
-          MONTH: item.MONTH || "",
-          DATE: item.DATE ? item.DATE.substring(0, 10) : "",
-          EMPNO: item.EMPNO || "",
-          EMPNM: item.EMPNM || "",
-          USERIP: item.USERIP || "",
-          LOGIN_STATUS: item.USERCONGB || "",
+          MONTH: item.login_date ? item.login_date.substring(0, 7).replace("-", "") : "",
+          LOGIN_DATE: loginDate, // 수정: "YYYY-MM-DD" 형식 보장
+          EMPLOYEE_NO: item.EMPNO || "",
+          EMPLOYEE_NAME: item.username || "",
+          USER_IP: item.USER_IP || "",
+          ACCESS_TYPE: item.login_status || "",
         };
       });
       setData(mappedData);
@@ -323,22 +302,19 @@ const LoginHistory = () => {
     }
   }, [data, loading, tableStatus, isSearched]);
 
-// 수정: 테이블 필터링 로직에서 컬럼 이름과 일치하도록 필드 이름 수정
-useEffect(() => {
-  if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
-  const { filterSelect, filterText } = tableFilters;
-  if (filterText && filterSelect) {
-    tableInstance.current.setFilter(filterSelect, "like", filterText);
-  } else if (filterText) {
-    tableInstance.current.setFilter(
-      [
-        { field: "MONTH", type: "like", value: filterText },
-        { field: "DATE", type: "like", value: filterText },
-        { field: "EMPNO", type: "like", value: filterText },
-        { field: "EMPNM", type: "like", value: filterText },
-        { field: "USERIP", type: "like", value: filterText },
-        { field: "LOGIN_STATUS", type: "like", value: filterText },
-      ],
+  useEffect(() => {
+    if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
+    const { filterSelect, filterText } = tableFilters;
+    if (filterText && filterSelect) {
+      tableInstance.current.setFilter(filterSelect, "like", filterText);
+    } else if (filterText) {
+      tableInstance.current.setFilter(
+        [
+          { field: "EMPLOYEE_NO", type: "like", value: filterText },
+          { field: "EMPLOYEE_NAME", type: "like", value: filterText },
+          { field: "LOGIN_DATE", type: "like", value: filterText },
+          { field: "ACCESS_TYPE", type: "like", value: filterText },
+        ],
         "or"
       );
     } else {
