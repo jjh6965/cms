@@ -11,33 +11,7 @@ import styles from "../../components/table/TableSearch.module.css";
 import { fetchData } from "../../utils/dataUtils";
 import api from "../../utils/api";
 import common from "../../utils/common";
-import { errorMsgPopup } from "../../utils/errorMsgPopup";
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className={styles.errorBoundary}>
-          <h2>오류가 발생했습니다.</h2>
-          <p>{this.state.error.message}</p>
-          <button onClick={() => this.setState({ hasError: false })}>다시 시도</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const DbWorkHistory = () => {
   const { user } = useStore();
@@ -55,8 +29,9 @@ const DbWorkHistory = () => {
   const isInitialRender = useRef(true); // 추가: 초기 렌더링 플래그
   const latestFiltersRef = useRef(filters); // 추가: 최신 필터 참조
 
-  const today = new Date("2025-06-12T11:24:00"); // 수정: 현재 시간 KST로 업데이트
+  const today = new Date(); // 수정: 고정된 날짜 대신 현재 날짜 사용
   const todayMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
+  //조회 버튼
   const searchConfig = {
     areas: [
       {
@@ -68,10 +43,19 @@ const DbWorkHistory = () => {
             row: 1,
             label: "월 선택",
             labelVisible: true,
-            options: Array.from({ length: 12 }, (_, i) => {
-              const month = (i + 1).toString().padStart(2, "0");
-              return { value: `2025-${month}`, label: `2025-${month}` };
-            }),
+            options: [
+              { value: todayMonth, label: todayMonth }, // 현재 월(2025-06)을 첫 번째로
+              ...Array.from({ length: today.getMonth() }, (_, i) => {
+                const month = (today.getMonth() - i).toString().padStart(2, "0"); // 역순으로 이전 월
+                return { value: `2025-${month}`, label: `2025-${month}` };
+              }),
+              ...Array.from({ length: 12 - today.getMonth() - 1 }, (_, i) => {
+                const month = (today.getMonth() + 1 + i + 1).toString().padStart(2, "0"); // 이후 월
+                return { value: `2025-${month}`, label: `2025-${month}` };
+              }),
+            ].filter(
+              (item, index, self) => index === self.findIndex((t) => t.value === item.value) // 중복 제거
+            ),
             width: "200px",
             height: "30px",
             backgroundColor: "#ffffff",
@@ -79,6 +63,12 @@ const DbWorkHistory = () => {
             enabled: true,
             defaultValue: todayMonth,
           },
+        ],
+      },
+      // 수정: searchBtn을 buttons 영역으로 이동하여 우측 끝 배치 (UserAuthManage.jsx 참고)
+      {
+        type: "buttons",
+        fields: [
           {
             id: "searchBtn",
             type: "button",
@@ -92,25 +82,26 @@ const DbWorkHistory = () => {
             enabled: true,
             labelVisible: false,
           },
-          {
-            id: "resetBtn",
-            type: "button",
-            row: 1,
-            label: "초기화",
-            eventType: "reset",
-            width: "80px",
-            height: "30px",
-            backgroundColor: "#00c4b4",
-            color: "#ffffff",
-            enabled: true,
-            labelVisible: false,
-          },
+          // 초기화 버튼
+          // {
+          //   id: "resetBtn",
+          //   type: "button",
+          //   row: 1,
+          //   label: "초기화",
+          //   eventType: "reset",
+          //   width: "80px",
+          //   height: "30px",
+          //   backgroundColor: "#00c4b4",
+          //   color: "#ffffff",
+          //   enabled: true,
+          //   labelVisible: false,
+          // },
         ],
       },
     ],
   };
 
-  // 수정: filterTableFields에 work_name 옵션 추가
+  //컬럼 필터
   const filterTableFields = [
     {
       id: "filterSelect",
@@ -118,11 +109,13 @@ const DbWorkHistory = () => {
       label: "",
       options: [
         { value: "", label: "선택" },
-        { value: "employee_no", label: "사원번호" },
-        { value: "employee_name", label: "이름" },
-        { value: "login_date", label: "일자" },
-        { value: "access_type", label: "구분(Web/Mobile)" },
-        { value: "work_name", label: "작업명" }, // 추가: 작업명 필터 옵션
+        { value: "MONTH", label: "월" },
+        { value: "DATE", label: "일자" },
+        { value: "EMPNO", label: "사원번호" },
+        { value: "EMPNM", label: "이름" },
+        { value: "USERIP", label: "사용자IP" },
+        { value: "USERCONGB", label: "구분(Web/Mobile)" },
+        { value: "JOBNM", label: "작업명" },
       ],
       width: "default",
       height: "default",
@@ -142,15 +135,21 @@ const DbWorkHistory = () => {
       enabled: true,
     },
   ];
+
   // result DB colum css(정렬 수정)
   const columns = [
     { title: "월", field: "MONTH", width: 100, headerHozAlign: "center", hozAlign: "center" },
-    { title: "일자", field: "login_date", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "사원번호", field: "employee_no", width: 120, headerHozAlign: "center", hozAlign: "center" },
-    { title: "이름", field: "employee_name", width: 120, headerHozAlign: "center", hozAlign: "center" },
-    { title: "사용자IP", field: "user_ip", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "구분(Web/Mobile)", field: "access_type", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "작업명", field: "work_name", width: 150, headerHozAlign: "center", hozAlign: "center" },
+    { title: "일자", field: "DATE", width: 150, headerHozAlign: "center", hozAlign: "center" },
+    { title: "사원번호", field: "EMPNO", width: 120, headerHozAlign: "center", hozAlign: "center" },
+    { title: "이름", field: "EMPNM", width: 120, headerHozAlign: "center", hozAlign: "center" },
+    { title: "사용자IP", field: "USERIP", width: 150, headerHozAlign: "center", hozAlign: "center" },
+    { title: "구분(Web/Mobile)", field: "USERCONGB", width: 150, headerHozAlign: "center", hozAlign: "center",
+      formatter: (cell) => { // w를 Web, m을 Mobile로 변환
+      const value = cell.getValue();
+      // 대소문자 확인 필요
+      return value === "W" ? "Web" : value === "M" ? "Mobile" : value; } },
+     // 컬럼 값이 다 안보여 width : 150 -> 300 수정 , hozAlign : 좌측 정렬
+      { title: "작업명", field: "JOBNM", width: 300, headerHozAlign: "center", hozAlign: "left" },
   ];
 
   // 수정: 초기 필터 설정
@@ -167,43 +166,66 @@ const DbWorkHistory = () => {
 
   // 수정: loadData 함수에서 최신 필터 사용
   const loadData = async (month = todayMonth) => {
-    setLoading(true);
-    setIsSearched(true); // 검색 상태 업데이트
-    setError(null);
+  setLoading(true);
+  setIsSearched(true);
+  setError(null);
 
-    const currentFilters = latestFiltersRef.current; // 최신 필터 사용
-    const params = { pMDATE: currentFilters.month.replace("-", ""), pDEBUG: "F" };
-    console.log("Fetching data with params:", params);
+  const currentFilters = latestFiltersRef.current;
+  const params = { pMDATE: currentFilters.month.replace("-", ""), pDEBUG: "F" };
+  console.log("Fetching data with params:", params);
 
-    try {
-      const response = await fetchData(api, `${common.getServerUrl("history/dbwork/list")}`, params, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
-      console.log("Raw API Response:", response);
-      if (!response.success || response.errMsg !== "") {
-        errorMsgPopup(response.message || `서버 오류: ${response.errMsg}` || "데이터 로드 실패");
-        setData([]);
-        return;
-      }
-      const mappedData = (response.data || []).map((item) => ({
-        MONTH: item.MONTH || "",
-        login_date: item.login_date ? item.login_date.substring(0, 10) : "",
-        employee_no: item.employee_no || "",
-        employee_name: item.employee_name || "",
-        user_ip: item.user_ip || "",
-        access_type: item.access_type || "",
-        work_name: item.work_name || "",
-      }));
-      setData(mappedData);
-    } catch (err) {
-      console.error("데이터 로드 실패:", err);
-      errorMsgPopup(err.response?.data?.message || "데이터 로드 실패");
+  try {
+    const response = await fetchData(api, `${common.getServerUrl("history/dbwork/list")}`, params, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user?.token}` },
+    });
+    console.log("Raw API Response:", response);
+    if (!response.success || response.errMsg !== "") {
+      // 수정: errorMsgPopup 제거, 데이터 비움
       setData([]);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    const mappedData = (response.data || []).map((item) => ({
+      MONTH: item.MONTH || "",
+      DATE: item.DATE ? item.DATE.substring(0, 10) : "",
+      EMPNO: item.EMPNO || "",
+      EMPNM: item.EMPNM || "",
+      USERIP: item.USERIP || "",
+      USERCONGB: item.USERCONGB || "",
+      JOBNM: item.JOBNM || "",
+    }));
+
+    setData(mappedData);
+  } catch (err) {
+    console.error("데이터 로드 실패:", err);
+    // 수정: errorMsgPopup 제거, 데이터 비움
+    setData([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (isInitialRender.current) {
+    isInitialRender.current = false;
+    return;
+  }
+  const table = tableInstance.current;
+  if (!table || tableStatus !== "ready" || loading) return;
+  if (table.rowManager?.renderer) {
+    table.setData(data);
+    if (isSearched && data.length === 0 && !loading) {
+      // 수정: alert 제거 및 데이터 클리어
+      table.clearData();
+    } else {
+      table.clearAlert();
+      setRowCount(table.getDataCount());
+    }
+  } else {
+    console.warn("renderer가 아직 초기화되지 않았습니다.");
+  }
+}, [data, loading, tableStatus, isSearched]);
 
   // 수정: handleDynamicEvent에 필터 초기화 로직 추가
   const handleDynamicEvent = (eventType) => {
@@ -263,11 +285,13 @@ const DbWorkHistory = () => {
     } else if (filterText) {
       tableInstance.current.setFilter(
         [
-          { field: "employee_no", type: "like", value: filterText },
-          { field: "employee_name", type: "like", value: filterText },
-          { field: "login_date", type: "like", value: filterText },
-          { field: "access_type", type: "like", value: filterText },
-          { field: "work_name", type: "like", value: filterText }, // 추가: 작업명 필터링
+          { field: "MONTH", type: "like", value: filterText },
+          { field: "DATE", type: "like", value: filterText },
+          { field: "EMPNO", type: "like", value: filterText },
+          { field: "EMPNM", type: "like", value: filterText },
+          { field: "USERIP", type: "like", value: filterText },
+          { field: "USERCONGB", type: "like", value: filterText },
+          { field: "JOBNM", type: "like", value: filterText },
         ],
         "or"
       );
@@ -275,9 +299,7 @@ const DbWorkHistory = () => {
       tableInstance.current.clearFilter();
     }
   }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
-
   return (
-    <ErrorBoundary>
       <div className={styles.container}>
         {error && <div>{error}</div>}
         <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
@@ -299,7 +321,6 @@ const DbWorkHistory = () => {
           />
         </div>
       </div>
-    </ErrorBoundary>
   );
 };
 
