@@ -179,66 +179,104 @@ const LoginHistory = () => {
     enabled: true,
   }));
 
-  const loadData = async () => {
-    setLoading(true);
-    setIsSearched(true);
-    setError(null);
+ const loadData = async () => {
+  setLoading(true);
+  setIsSearched(true);
+  setError(null);
 
-    const currentFilters = latestFiltersRef.current;
+  const currentFilters = latestFiltersRef.current;
 
-    const params = {
-      pMDATE: currentFilters.month || todayMonth.replace("-", ""), // YYYYMM 형식
-      pDEBUG: "F",
-    };
-    console.log("Fetching data with params:", params);
-    console.log("Full API URL:", `${common.getServerUrl("history/login/list")}`);
+  const params = {
+    pMDATE: currentFilters.month || todayMonth.replace("-", ""),
+    pDEBUG: "F",
+  };
+  console.log("Fetching data with params:", params);
 
-    try {
-      const response = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
+  try {
+    const response = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user?.token}` },
+    });
+    if (!response.success) {
+      errorMsgPopup(response.message || "로그인 이력 데이터를 가져오는 중 오류가 발생했습니다.");
+      setData([]);
+      return;
+    }
+    if (response.errMsg !== "") {
+      errorMsgPopup(`서버 오류: ${response.errMsg}`);
+      setData([]);
+      return;
+    }
+    const responseData = response.data || [];
+    if (!Array.isArray(responseData)) {
+      console.error("응답 데이터가 배열이 아님:", responseData);
+      setData([]);
+      return;
+    }
+    const mappedData = responseData.map((item) => {
+      if (item.vQuery) {
+        console.warn("Received vQuery instead of data:", item.vQuery);
+        return {};
+      }
+      return {
+        MONTH: item.MONTH || "",
+        DATE: item.DATE ? item.DATE.substring(0, 10) : "",
+        EMPNO: item.EMPNO || "",
+        EMPNM: item.EMPNM || "",
+        USERIP: item.USERIP || "",
+        LOGIN_STATUS: item.USERCONGB || "",
+      };
+    });
+    const monthsWithData = [...new Set(mappedData.map(item => item.MONTH).filter(month => month))];
+    setSearchConfig(prevConfig => ({
+      ...prevConfig,
+      areas: [
+        {
+          type: "search",
+          fields: [
+            {
+              ...prevConfig.areas[0].fields[0],
+              options: prevConfig.areas[0].fields[0].options.filter(option =>
+                monthsWithData.includes(option.value)
+              ),
+            },
+          ],
+        },
+        prevConfig.areas[1],
+      ],
+    }));
+    setData(mappedData);
+    console.log("Mapped data:", mappedData);
+  } catch (err) {
+    console.error("데이터 로드 실패:", err);
+    if (err.response?.status === 401) {
+      await refreshToken();
+      // 토큰 갱신 후 재시도
+      const retryResponse = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
         method: "POST",
         headers: { Authorization: `Bearer ${user?.token}` },
       });
-      console.log("Raw API Response:", response);
-      if (!response.success) {
-        // 수정: errorMsgPopup 제거, 데이터 비움
-        setData([]);
-        return;
-      }
-      if (response.errMsg !== "") {
-        // 수정: errorMsgPopup 제거, 데이터 비움
-        setData([]);
-        return;
-      }
-      const responseData = response.data || [];
-      if (!Array.isArray(responseData)) {
-        console.error("응답 데이터가 배열이 아님:", responseData);
-        setData([]);
-        return;
-      }
-      const mappedData = responseData.map((item) => {
-        if (item.vQuery) {
-          console.warn("Received vQuery instead of data:", item.vQuery);
-          return {};
-        }
-        return {
-          MONTH: item.MONTH || "",
-          DATE: item.DATE ? item.DATE.substring(0, 10) : "",
-          EMPNO: item.EMPNO || "",
-          EMPNM: item.EMPNM || "",
-          USERIP: item.USERIP || "",
-          LOGIN_STATUS: item.USERCONGB || "",
-        };
-      });
-      setData(mappedData);
-      console.log("Mapped data:", mappedData);
-    } catch (err) {
-      console.error("데이터 로드 실패:", err);
-      // 수정: errorMsgPopup 제거, 데이터 비움
+      if (!retryResponse.success) throw new Error(retryResponse.message);
+      // 재시도 성공 시 데이터 처리
+      const retryData = retryResponse.data || [];
+      const mappedRetryData = retryData.map((item) => ({
+        MONTH: item.MONTH || "",
+        DATE: item.DATE ? item.DATE.substring(0, 10) : "",
+        EMPNO: item.EMPNO || "",
+        EMPNM: item.EMPNM || "",
+        USERIP: item.USERIP || "",
+        LOGIN_STATUS: item.USERCONGB || "",
+      }));
+      setData(mappedRetryData);
+    } else {
+      const errorMessage = err.response?.data?.message || "로그인 이력 데이터를 가져오는 중 오류가 발생했습니다.";
+      errorMsgPopup(errorMessage);
       setData([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   // 필터 수정: handleDynamicEvent 함수 추가
   const handleDynamicEvent = (eventType) => {
