@@ -144,14 +144,9 @@ const LoginHistory = () => {
     latestFiltersRef.current = filters;
   }, [filters]);
 
-  // 권한 수정 부 (local->server 오류)
-useEffect(() => {
-  if (!user || !hasPermission(user.auth, "loginHistory")) navigate("/");
-  if (!user?.token) {
-    console.warn("User token is missing, redirecting to login.");
-    navigate("/login"); // 로그인 페이지로 리다이렉트
-  }
-}, [user, navigate]);
+  useEffect(() => {
+    if (!user || !hasPermission(user.auth, "loginHistory")) navigate("/");
+  }, [user, navigate]);
 
   // columns css 정렬
   const columns = [
@@ -179,82 +174,66 @@ useEffect(() => {
     enabled: true,
   }));
 
-const loadData = async () => {
-  setLoading(true);
-  setIsSearched(true);
-  setError(null);
+  const loadData = async () => {
+    setLoading(true);
+    setIsSearched(true);
+    setError(null);
 
-  const currentFilters = latestFiltersRef.current;
-  const params = {
-    pMDATE: currentFilters.month || todayMonth.replace("-", ""),
-    pDEBUG: "F",
-  };
-  console.log("Fetching data with params:", params);
+    const currentFilters = latestFiltersRef.current;
 
-  try {
-    const response = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${user?.token}` },
-    });
-    if (!response.success) {
-      setData([]);
-      return;
-    }
-    if (response.errMsg !== "") {
-      setData([]);
-      return;
-    }
-    const responseData = response.data || [];
-    if (!Array.isArray(responseData)) {
-      console.error("응답 데이터가 배열이 아님:", responseData);
-      setData([]);
-      return;
-    }
-    const mappedData = responseData.map((item) => ({
-      MONTH: item.MONTH || "",
-      DATE: item.DATE ? item.DATE.substring(0, 10) : "",
-      EMPNO: item.EMPNO || "",
-      EMPNM: item.EMPNM || "",
-      USERIP: item.USERIP || "",
-      LOGIN_STATUS: item.USERCONGB || "",
-    }));
-    setData(mappedData);
-  } catch (err) {
-    console.error("데이터 로드 실패:", err);
-    if (err.response?.status === 401) {
-      try {
-        // refreshToken 로직 (가정: utils/authUtils.js에 정의)
-        const newToken = await refreshToken(user?.refreshToken); // refreshToken 함수 필요
-        if (newToken) {
-          user.token = newToken; // store에 토큰 업데이트 로직 필요
-          // 재시도
-          const retryResponse = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${newToken}` },
-          });
-          if (retryResponse.success) {
-            const mappedData = (retryResponse.data || []).map((item) => ({
-              MONTH: item.MONTH || "",
-              DATE: item.DATE ? item.DATE.substring(0, 10) : "",
-              EMPNO: item.EMPNO || "",
-              EMPNM: item.EMPNM || "",
-              USERIP: item.USERIP || "",
-              LOGIN_STATUS: item.USERCONGB || "",
-            }));
-            setData(mappedData);
-            return;
-          }
-        }
-      } catch (refreshErr) {
-        console.error("토큰 갱신 실패:", refreshErr);
-        navigate("/login"); // 갱신 실패 시 로그인 페이지로
+    const params = {
+      pMDATE: currentFilters.month || todayMonth.replace("-", ""), // YYYYMM 형식
+      pDEBUG: "F",
+    };
+    console.log("Fetching data with params:", params);
+    console.log("Full API URL:", `${common.getServerUrl("history/login/list")}`);
+
+    try {
+      const response = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      console.log("Raw API Response:", response);
+      if (!response.success) {
+        // 수정: errorMsgPopup 제거, 데이터 비움
+        setData([]);
+        return;
       }
+      if (response.errMsg !== "") {
+        // 수정: errorMsgPopup 제거, 데이터 비움
+        setData([]);
+        return;
+      }
+      const responseData = response.data || [];
+      if (!Array.isArray(responseData)) {
+        console.error("응답 데이터가 배열이 아님:", responseData);
+        setData([]);
+        return;
+      }
+      const mappedData = responseData.map((item) => {
+        if (item.vQuery) {
+          console.warn("Received vQuery instead of data:", item.vQuery);
+          return {};
+        }
+        return {
+          MONTH: item.MONTH || "",
+          DATE: item.DATE ? item.DATE.substring(0, 10) : "",
+          EMPNO: item.EMPNO || "",
+          EMPNM: item.EMPNM || "",
+          USERIP: item.USERIP || "",
+          LOGIN_STATUS: item.USERCONGB || "",
+        };
+      });
+      setData(mappedData);
+      console.log("Mapped data:", mappedData);
+    } catch (err) {
+      console.error("데이터 로드 실패:", err);
+      // 수정: errorMsgPopup 제거, 데이터 비움
+      setData([]);
+    } finally {
+      setLoading(false);
     }
-    setData([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // 필터 수정: handleDynamicEvent 함수 추가
   const handleDynamicEvent = (eventType) => {
