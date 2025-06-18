@@ -13,11 +13,7 @@ import api from "../../utils/api";
 import common from "../../utils/common";
 
 
-<<<<<<< HEAD
 const DbWorkHistory = () => {
-=======
-const DbFileWorkHistoryNew = () => {
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
   const { user } = useStore();
   const navigate = useNavigate();
   const [filters, setFilters] = useState({});
@@ -150,17 +146,10 @@ const DbFileWorkHistoryNew = () => {
     { title: "구분(Web/Mobile)", field: "USERCONGB", width: 150, headerHozAlign: "center", hozAlign: "center",
       formatter: (cell) => { // w를 Web, m을 Mobile로 변환
       const value = cell.getValue();
-<<<<<<< HEAD
       // 대소문자 확인 필요
       return value === "W" ? "Web" : value === "M" ? "Mobile" : value; } },
      // 컬럼 값이 다 안보여 width : 150 -> 300 수정 , hozAlign : 좌측 정렬
       { title: "작업명", field: "JOBNM", width: 300, headerHozAlign: "center", hozAlign: "left" },
-=======
-      // 타입 비교로 대소문자 확인 필요
-      return value === "W" ? "Web" : value === "M" ? "Mobile" : value; } },
-      // 컬럼 값이 다 안보여 width : 150 -> 300 수정, hozAlign : 좌측 정렬
-    { title: "작업명", field: "JOBNM", width: 300, headerHozAlign: "center", hozAlign: "left" },
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
   ];
 
   // 수정: 초기 필터 설정
@@ -178,26 +167,15 @@ const DbFileWorkHistoryNew = () => {
   // 수정: loadData 함수에서 최신 필터 사용
   const loadData = async (month = todayMonth) => {
   setLoading(true);
-<<<<<<< HEAD
   setIsSearched(true);
   setError(null);
 
   const currentFilters = latestFiltersRef.current;
-=======
-  setIsSearched(true); // 검색 상태 업데이트
-  setError(null);
-
-  const currentFilters = latestFiltersRef.current; // 최신 필터 사용
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
   const params = { pMDATE: currentFilters.month.replace("-", ""), pDEBUG: "F" };
   console.log("Fetching data with params:", params);
 
   try {
-<<<<<<< HEAD
     const response = await fetchData(api, `${common.getServerUrl("history/dbwork/list")}`, params, {
-=======
-    const response = await fetchData(api, `${common.getServerUrl("history/dbfilework/list")}`, params, {
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
       method: "POST",
       headers: { Authorization: `Bearer ${user?.token}` },
     });
@@ -207,10 +185,7 @@ const DbFileWorkHistoryNew = () => {
       setData([]);
       return;
     }
-<<<<<<< HEAD
 
-=======
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
     const mappedData = (response.data || []).map((item) => ({
       MONTH: item.MONTH || "",
       DATE: item.DATE ? item.DATE.substring(0, 10) : "",
@@ -220,10 +195,7 @@ const DbFileWorkHistoryNew = () => {
       USERCONGB: item.USERCONGB || "",
       JOBNM: item.JOBNM || "",
     }));
-<<<<<<< HEAD
 
-=======
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
     setData(mappedData);
   } catch (err) {
     console.error("데이터 로드 실패:", err);
@@ -233,7 +205,6 @@ const DbFileWorkHistoryNew = () => {
     setLoading(false);
   }
 };
-<<<<<<< HEAD
 
 useEffect(() => {
   if (isInitialRender.current) {
@@ -255,8 +226,6 @@ useEffect(() => {
     console.warn("renderer가 아직 초기화되지 않았습니다.");
   }
 }, [data, loading, tableStatus, isSearched]);
-=======
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
 
   // 수정: handleDynamicEvent에 필터 초기화 로직 추가
   const handleDynamicEvent = (eventType) => {
@@ -309,7 +278,6 @@ useEffect(() => {
 
   // 수정: 테이블 필터링 로직에 work_name 필터 추가
   useEffect(() => {
-<<<<<<< HEAD
     if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
     const { filterSelect, filterText } = tableFilters;
     if (filterText && filterSelect) {
@@ -331,30 +299,6 @@ useEffect(() => {
       tableInstance.current.clearFilter();
     }
   }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
-=======
-  if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
-  const { filterSelect, filterText } = tableFilters;
-  if (filterText && filterSelect) {
-    tableInstance.current.setFilter(filterSelect, "like", filterText);
-  } else if (filterText) {
-    tableInstance.current.setFilter(
-      [
-        { field: "MONTH", type: "like", value: filterText },
-        { field: "DATE", type: "like", value: filterText },
-        { field: "EMPNO", type: "like", value: filterText },
-        { field: "EMPNM", type: "like", value: filterText },
-        { field: "USERIP", type: "like", value: filterText },
-        { field: "USERCONGB", type: "like", value: filterText },
-        { field: "JOBNM", type: "like", value: filterText },
-      ],
-      "or"
-    );
-  } else {
-    tableInstance.current.clearFilter();
-  }
-}, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
-
->>>>>>> a0538eb74e5e39c2f6b72b0d1293837121e35337
   return (
       <div className={styles.container}>
         {error && <div>{error}</div>}
