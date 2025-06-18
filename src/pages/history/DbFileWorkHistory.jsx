@@ -11,35 +11,9 @@ import styles from "../../components/table/TableSearch.module.css";
 import { fetchData } from "../../utils/dataUtils";
 import api from "../../utils/api";
 import common from "../../utils/common";
-import { errorMsgPopup } from "../../utils/errorMsgPopup";
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className={styles.errorBoundary}>
-          <h2>오류가 발생했습니다.</h2>
-          <p>{this.state.error.message}</p>
-          <button onClick={() => this.setState({ hasError: false })}>다시 시도</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const DbFileWorkHistoryNew = () => {
+const DbWorkHistory = () => {
   const { user } = useStore();
   const navigate = useNavigate();
   const [filters, setFilters] = useState({});
@@ -55,10 +29,9 @@ const DbFileWorkHistoryNew = () => {
   const isInitialRender = useRef(true); // 추가: 초기 렌더링 플래그
   const latestFiltersRef = useRef(filters); // 추가: 최신 필터 참조
 
-  const today = new Date("2025-06-12T11:25:00"); // 수정: 현재 시간 KST로 업데이트
+  const today = new Date(); // 수정: 고정된 날짜 대신 현재 날짜 사용
   const todayMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
-
-  //조회 기능
+  //조회 버튼
   const searchConfig = {
     areas: [
       {
@@ -128,7 +101,7 @@ const DbFileWorkHistoryNew = () => {
     ],
   };
 
-  //필터 기능
+  //컬럼 필터
   const filterTableFields = [
     {
       id: "filterSelect",
@@ -162,6 +135,7 @@ const DbFileWorkHistoryNew = () => {
       enabled: true,
     },
   ];
+
   // result DB colum css(정렬 수정)
   const columns = [
     { title: "월", field: "MONTH", width: 100, headerHozAlign: "center", hozAlign: "center" },
@@ -169,26 +143,18 @@ const DbFileWorkHistoryNew = () => {
     { title: "사원번호", field: "EMPNO", width: 120, headerHozAlign: "center", hozAlign: "center" },
     { title: "이름", field: "EMPNM", width: 120, headerHozAlign: "center", hozAlign: "center" },
     { title: "사용자IP", field: "USERIP", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    {
-      title: "구분(Web/Mobile)",
-      field: "USERCONGB",
-      width: 150,
-      headerHozAlign: "center",
-      hozAlign: "center",
-      formatter: (cell) => {
-        // w를 Web, m을 Mobile로 변환
-        const value = cell.getValue();
-        // 타입 비교로 대소문자 확인 필요
-        return value === "W" ? "Web" : value === "M" ? "Mobile" : value;
-      },
-    },
-    // 컬럼 값이 다 안보여 width : 150 -> 300 수정, hozAlign : 좌측 정렬
-    { title: "작업명", field: "JOBNM", width: 300, headerHozAlign: "center", hozAlign: "left" },
+    { title: "구분(Web/Mobile)", field: "USERCONGB", width: 150, headerHozAlign: "center", hozAlign: "center",
+      formatter: (cell) => { // w를 Web, m을 Mobile로 변환
+      const value = cell.getValue();
+      // 대소문자 확인 필요
+      return value === "W" ? "Web" : value === "M" ? "Mobile" : value; } },
+     // 컬럼 값이 다 안보여 width : 150 -> 300 수정 , hozAlign : 좌측 정렬
+      { title: "작업명", field: "JOBNM", width: 300, headerHozAlign: "center", hozAlign: "left" },
   ];
 
   // 수정: 초기 필터 설정
   useEffect(() => {
-    if (!user || !hasPermission(user.auth, ["systemAdmin", "operator"])) navigate("/");
+    if (!user || !hasPermission(user.auth, "dbWorkHistory")) navigate("/");
     setFilters(initialFilters(searchConfig.areas[0].fields));
     setTableFilters(initialFilters(filterTableFields)); // 필터 초기화 추가
   }, [user, navigate]);
@@ -200,43 +166,66 @@ const DbFileWorkHistoryNew = () => {
 
   // 수정: loadData 함수에서 최신 필터 사용
   const loadData = async (month = todayMonth) => {
-    setLoading(true);
-    setIsSearched(true); // 검색 상태 업데이트
-    setError(null);
+  setLoading(true);
+  setIsSearched(true);
+  setError(null);
 
-    const currentFilters = latestFiltersRef.current; // 최신 필터 사용
-    const params = { pMDATE: currentFilters.month.replace("-", ""), pDEBUG: "F" };
-    console.log("Fetching data with params:", params);
+  const currentFilters = latestFiltersRef.current;
+  const params = { pMDATE: currentFilters.month.replace("-", ""), pDEBUG: "F" };
+  console.log("Fetching data with params:", params);
 
-    try {
-      const response = await fetchData(api, `${common.getServerUrl("history/dbfilework/list")}`, params, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
-      console.log("Raw API Response:", response);
-      if (!response.success || response.errMsg !== "") {
-        errorMsgPopup(response.message || `서버 오류: ${response.errMsg}` || "데이터 로드 실패");
-        setData([]);
-        return;
-      }
-      const mappedData = (response.data || []).map((item) => ({
-        MONTH: item.MONTH || "",
-        DATE: item.DATE ? item.DATE.substring(0, 10) : "",
-        EMPNO: item.EMPNO || "",
-        EMPNM: item.EMPNM || "",
-        USERIP: item.USERIP || "",
-        USERCONGB: item.USERCONGB || "",
-        JOBNM: item.JOBNM || "",
-      }));
-      setData(mappedData);
-    } catch (err) {
-      console.error("데이터 로드 실패:", err);
-      errorMsgPopup(err.response?.data?.message || "데이터 로드 실패");
+  try {
+    const response = await fetchData(api, `${common.getServerUrl("history/dbwork/list")}`, params, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${user?.token}` },
+    });
+    console.log("Raw API Response:", response);
+    if (!response.success || response.errMsg !== "") {
+      // 수정: errorMsgPopup 제거, 데이터 비움
       setData([]);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    const mappedData = (response.data || []).map((item) => ({
+      MONTH: item.MONTH || "",
+      DATE: item.DATE ? item.DATE.substring(0, 10) : "",
+      EMPNO: item.EMPNO || "",
+      EMPNM: item.EMPNM || "",
+      USERIP: item.USERIP || "",
+      USERCONGB: item.USERCONGB || "",
+      JOBNM: item.JOBNM || "",
+    }));
+
+    setData(mappedData);
+  } catch (err) {
+    console.error("데이터 로드 실패:", err);
+    // 수정: errorMsgPopup 제거, 데이터 비움
+    setData([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (isInitialRender.current) {
+    isInitialRender.current = false;
+    return;
+  }
+  const table = tableInstance.current;
+  if (!table || tableStatus !== "ready" || loading) return;
+  if (table.rowManager?.renderer) {
+    table.setData(data);
+    if (isSearched && data.length === 0 && !loading) {
+      // 수정: alert 제거 및 데이터 클리어
+      table.clearData();
+    } else {
+      table.clearAlert();
+      setRowCount(table.getDataCount());
+    }
+  } else {
+    console.warn("renderer가 아직 초기화되지 않았습니다.");
+  }
+}, [data, loading, tableStatus, isSearched]);
 
   // 수정: handleDynamicEvent에 필터 초기화 로직 추가
   const handleDynamicEvent = (eventType) => {
@@ -287,7 +276,7 @@ const DbFileWorkHistoryNew = () => {
     }
   }, [data, loading, tableStatus, isSearched]);
 
-  // 수정: 테이블 필터링 로직에서 컬럼 이름과 일치하도록 필드 이름 수정
+  // 수정: 테이블 필터링 로직에 work_name 필터 추가
   useEffect(() => {
     if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
     const { filterSelect, filterText } = tableFilters;
@@ -310,9 +299,7 @@ const DbFileWorkHistoryNew = () => {
       tableInstance.current.clearFilter();
     }
   }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
-
   return (
-    <ErrorBoundary>
       <div className={styles.container}>
         {error && <div>{error}</div>}
         <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
@@ -320,7 +307,7 @@ const DbFileWorkHistoryNew = () => {
           filterFields={filterTableFields} // 수정: 필터 필드 추가
           filters={tableFilters} // 수정: 필터 상태 전달
           setFilters={setTableFilters} // 수정: 필터 상태 업데이트 함수 전달
-          onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "월별_DB_작업이력_FILE.xlsx")}
+          onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "월별_DB_작업_이력.xlsx")}
           rowCount={rowCount} // 수정: 행 수 전달
           onEvent={handleDynamicEvent} // 수정: 이벤트 핸들러 전달
         />
@@ -334,8 +321,7 @@ const DbFileWorkHistoryNew = () => {
           />
         </div>
       </div>
-    </ErrorBoundary>
   );
 };
 
-export default DbFileWorkHistoryNew;
+export default DbWorkHistory;

@@ -13,34 +13,6 @@ import api from "../../utils/api";
 import common from "../../utils/common";
 import { errorMsgPopup } from "../../utils/errorMsgPopup";
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component {
-  state = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className={styles.errorBoundary}>
-          <h2>오류가 발생했습니다.</h2>
-          <p>{this.state.error.message}</p>
-          <button onClick={() => this.setState({ hasError: false })}>다시 시도</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// ... (기존 코드 생략)
-
 const LoginHistory = () => {
   const { user } = useStore();
   const navigate = useNavigate();
@@ -57,7 +29,7 @@ const LoginHistory = () => {
   const isInitialRender = useRef(true);
   const latestFiltersRef = useRef(filters);
 
-  const today = new Date("2025-06-11T13:36:00"); // 현재 시간 반영 (KST)
+  const today = new Date(); // 수정: 고정된 날짜 대신 현재 날짜 사용
   const todayMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
 
   const searchConfig = {
@@ -183,12 +155,14 @@ const LoginHistory = () => {
     { title: "사원번호", field: "EMPNO", width: 120, headerHozAlign: "center", hozAlign: "center" },
     { title: "이름", field: "EMPNM", width: 120, headerHozAlign: "center", hozAlign: "center" },
     { title: "사용자IP", field: "USERIP", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "구분(Web/Mobile)", field: "LOGIN_STATUS", width: 150, headerHozAlign: "center", hozAlign: "center", 
-      formatter: (cell) => { // w를 Web, m을 Mobile로 변환
+    { title: "구분(Web/Mobile)",field: "LOGIN_STATUS",width: 150, headerHozAlign: "center", hozAlign: "center", 
+      formatter: (cell) => {
+      // w를 Web, m을 Mobile로 변환
       const value = cell.getValue();
       // 대소문자 확인 필요
-      return value === "W" ? "Web" : value === "M" ? "Mobile" : value; }
-    }
+      return value === "W" ? "Web" : value === "M" ? "Mobile" : value;
+      },
+    },
   ];
 
   // 수정: columns 기반 동적 필터 필드 생성
@@ -221,12 +195,12 @@ const LoginHistory = () => {
       });
       console.log("Raw API Response:", response);
       if (!response.success) {
-        errorMsgPopup(response.message || "로그인 이력 데이터를 가져오는 중 오류가 발생했습니다.");
+        // 수정: errorMsgPopup 제거, 데이터 비움
         setData([]);
         return;
       }
       if (response.errMsg !== "") {
-        errorMsgPopup(`서버 오류: ${response.errMsg}`);
+        // 수정: errorMsgPopup 제거, 데이터 비움
         setData([]);
         return;
       }
@@ -254,8 +228,7 @@ const LoginHistory = () => {
       console.log("Mapped data:", mappedData);
     } catch (err) {
       console.error("데이터 로드 실패:", err);
-      const errorMessage = err.response?.data?.message || "로그인 이력 데이터를 가져오는 중 오류가 발생했습니다.";
-      errorMsgPopup(errorMessage);
+      // 수정: errorMsgPopup 제거, 데이터 비움
       setData([]);
     } finally {
       setLoading(false);
@@ -303,6 +276,30 @@ const LoginHistory = () => {
     };
   }, []);
 
+  // 필터 기능
+  useEffect(() => {
+    if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
+    const { filterSelect, filterText } = tableFilters;
+    if (filterText && filterSelect) {
+      tableInstance.current.setFilter(filterSelect, "like", filterText);
+    } else if (filterText) {
+      tableInstance.current.setFilter(
+        [
+          { field: "MONTH", type: "like", value: filterText },
+          { field: "DATE", type: "like", value: filterText },
+          { field: "EMPNO", type: "like", value: filterText },
+          { field: "EMPNM", type: "like", value: filterText },
+          { field: "USERIP", type: "like", value: filterText },
+          { field: "LOGIN_STATUS", type: "like", value: filterText },
+        ],
+        "or"
+      );
+    } else {
+      tableInstance.current.clearFilter();
+    }
+  }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
+
+  //DB 없는 월 오류 alert 제거
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
@@ -313,9 +310,10 @@ const LoginHistory = () => {
     if (table.rowManager?.renderer) {
       table.setData(data);
       if (isSearched && data.length === 0 && !loading) {
-        tableInstance.current.alert("검색 결과 없음", "info");
+        // 수정: alert 제거 및 데이터 클리어
+        table.clearData();
       } else {
-        tableInstance.current.clearAlert();
+        table.clearAlert(); // 기존 alert 제거
         setRowCount(table.getDataCount());
       }
     } else {
@@ -323,53 +321,28 @@ const LoginHistory = () => {
     }
   }, [data, loading, tableStatus, isSearched]);
 
-// 수정: 테이블 필터링 로직에서 컬럼 이름과 일치하도록 필드 이름 수정
-useEffect(() => {
-  if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
-  const { filterSelect, filterText } = tableFilters;
-  if (filterText && filterSelect) {
-    tableInstance.current.setFilter(filterSelect, "like", filterText);
-  } else if (filterText) {
-    tableInstance.current.setFilter(
-      [
-        { field: "MONTH", type: "like", value: filterText },
-        { field: "DATE", type: "like", value: filterText },
-        { field: "EMPNO", type: "like", value: filterText },
-        { field: "EMPNM", type: "like", value: filterText },
-        { field: "USERIP", type: "like", value: filterText },
-        { field: "LOGIN_STATUS", type: "like", value: filterText },
-      ],
-        "or"
-      );
-    } else {
-      tableInstance.current.clearFilter();
-    }
-  }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
-
   return (
-    <ErrorBoundary>
-      <div className={styles.container}>
-        {error && <div>{error}</div>}
-        <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
-        <TableSearch
-          filterFields={filterTableFields} // 기존 필터 필드 유지
-          filters={tableFilters} // 기존 필터 상태 사용
-          setFilters={setTableFilters} // 기존 필터 상태 업데이트 함수 사용
-          onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "로그인_이력.xlsx")}
-          rowCount={rowCount}
-          onEvent={handleDynamicEvent} // 수정: handleDynamicEvent 전달
+    <div className={styles.container}>
+      {error && <div>{error}</div>}
+      <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
+      <TableSearch
+        filterFields={filterTableFields} // 기존 필터 필드 유지
+        filters={tableFilters} // 기존 필터 상태 사용
+        setFilters={setTableFilters} // 기존 필터 상태 업데이트 함수 사용
+        onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "로그인_이력.xlsx")}
+        rowCount={rowCount}
+        onEvent={handleDynamicEvent} // 수정: handleDynamicEvent 전달
+      />
+      <div className={styles.tableWrapper}>
+        {tableStatus === "initializing" && <div>초기화 중...</div>}
+        {loading && <div>로딩 중...</div>}
+        <div
+          ref={tableRef}
+          className={styles.tableSection}
+          style={{ visibility: loading || tableStatus !== "ready" ? "hidden" : "visible" }}
         />
-        <div className={styles.tableWrapper}>
-          {tableStatus === "initializing" && <div>초기화 중...</div>}
-          {loading && <div>로딩 중...</div>}
-          <div
-            ref={tableRef}
-            className={styles.tableSection}
-            style={{ visibility: loading || tableStatus !== "ready" ? "hidden" : "visible" }}
-          />
-        </div>
       </div>
-    </ErrorBoundary>
+    </div>
   );
 };
 
