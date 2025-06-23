@@ -1,0 +1,2 @@
+const n="_boardTitle_9snwk_1",t="_boardTitleLine_9snwk_5",e="_btnReg_9snwk_9",o="_btnMod_9snwk_16",_="_btnDel_9snwk_22",s="_btnCancel_9snwk_28",i="_contentContainer_9snwk_34",a="_contentDate_9snwk_39",c="_pagination_9snwk_44",l="_pageLink_9snwk_54",b="_formControl_9snwk_66",k="_fileItem_9snwk_77",r="_imageFile_9snwk_83",w={boardTitle:n,boardTitleLine:t,btnReg:e,btnMod:o,btnDel:_,btnCancel:s,contentContainer:i,contentDate:a,pagination:c,pageLink:l,formControl:b,fileItem:k,imageFile:r};export{w as s};
+//# sourceMappingURL=Board.module-DCwUm73g.js.map
