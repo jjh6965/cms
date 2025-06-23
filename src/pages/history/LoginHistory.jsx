@@ -11,13 +11,16 @@ import styles from "../../components/table/TableSearch.module.css";
 import { fetchData } from "../../utils/dataUtils";
 import api from "../../utils/api";
 import common from "../../utils/common";
+// 2025-06-23: 추가: 등록 팝업과 메시지 팝업을 위한 컴포넌트 및 유틸리티 import
+import CommonPopup from "../../components/popup/CommonPopup";
 import { errorMsgPopup } from "../../utils/errorMsgPopup";
+import { msgPopup } from "../../utils/msgPopup";
 
 const LoginHistory = () => {
   const { user } = useStore();
   const navigate = useNavigate();
   const [filters, setFilters] = useState({});
-  const [tableFilters, setTableFilters] = useState({}); // 기존 필터 상태 유지
+  const [tableFilters, setTableFilters] = useState({});
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
   const [isSearched, setIsSearched] = useState(false);
@@ -31,6 +34,18 @@ const LoginHistory = () => {
 
   const today = new Date(); // 수정: 고정된 날짜 대신 현재 날짜 사용
   const todayMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
+  // 2025-06-23: 추가: 등록 팝업에서 사용할 오늘 날짜
+  const todayDate = today.toISOString().slice(0, 10);
+
+  // 2025-06-23: 추가: 등록 팝업에서 사용할 입력 데이터 상태
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [insertData, setInsertData] = useState({
+    month: todayMonth,
+    date: todayDate,
+    empNo: user?.empNo || "defaultEmpNo",
+    userIp: "",
+    loginStatus: "W",
+  });
 
   const searchConfig = {
     areas: [
@@ -82,20 +97,20 @@ const LoginHistory = () => {
             enabled: true,
             labelVisible: false,
           },
-          // 초기화 버튼
-          // {
-          //   id: "resetBtn",
-          //   type: "button",
-          //   row: 1,
-          //   label: "초기화",
-          //   eventType: "reset",
-          //   width: "80px",
-          //   height: "30px",
-          //   backgroundColor: "#00c4b4",
-          //   color: "#ffffff",
-          //   enabled: true,
-          //   labelVisible: false,
-          // },
+          // 2025-06-23: 추가: 초기화 버튼 활성화
+          {
+            id: "resetBtn",
+            type: "button",
+            row: 1,
+            label: "초기화",
+            eventType: "reset",
+            width: "80px",
+            height: "30px",
+            backgroundColor: "#00c4b4",
+            color: "#ffffff",
+            enabled: true,
+            labelVisible: false,
+          },
         ],
       },
     ],
@@ -142,37 +157,54 @@ const LoginHistory = () => {
 
   useEffect(() => {
     latestFiltersRef.current = filters;
+    // 2025-06-23: 추가: 필터 변경 시 등록 데이터의 월 동기화
+    if (filters.month) {
+      setInsertData((prev) => ({ ...prev, month: filters.month }));
+    }
   }, [filters]);
 
   useEffect(() => {
     if (!user || !hasPermission(user.auth, "loginHistory")) navigate("/");
   }, [user, navigate]);
 
-  // columns css 정렬
   const columns = [
     { title: "월", field: "MONTH", width: 100, headerHozAlign: "center", hozAlign: "center" },
     { title: "일자", field: "DATE", width: 150, headerHozAlign: "center", hozAlign: "center" },
     { title: "사원번호", field: "EMPNO", width: 120, headerHozAlign: "center", hozAlign: "center" },
     { title: "이름", field: "EMPNM", width: 120, headerHozAlign: "center", hozAlign: "center" },
     { title: "사용자IP", field: "USERIP", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "구분(Web/Mobile)",field: "LOGIN_STATUS",width: 150, headerHozAlign: "center", hozAlign: "center", 
+    {
+      title: "구분(Web/Mobile)",
+      field: "LOGIN_STATUS",
+      width: 150,
+      headerHozAlign: "center",
+      hozAlign: "center",
       formatter: (cell) => {
-      // w를 Web, m을 Mobile로 변환
-      const value = cell.getValue();
-      // 대소문자 확인 필요
-      return value === "W" ? "Web" : value === "M" ? "Mobile" : value;
+        const value = cell.getValue();
+        return value === "W" ? "Web" : value === "M" ? "Mobile" : value;
+      },
+    },
+    // 2025-06-23: 추가: 삭제 버튼 열 추가
+    // 2025-06-23 Fix: window.handleDeleteRow 대신 React 이벤트 핸들러 사용
+    {
+      title: "",
+      field: "delete",
+      width: 50,
+      headerHozAlign: "center",
+      hozAlign: "center",
+      formatter: (cell) => {
+        const rowData = cell.getRow().getData();
+        const button = document.createElement("button");
+        button.className = styles.deleteBtn;
+        button.textContent = "삭제";
+        button.addEventListener("click", (e) => {
+          e.stopPropagation();
+          handleDelete(rowData.EMPNO, rowData.DATE);
+        });
+        return button;
       },
     },
   ];
-
-  // 수정: columns 기반 동적 필터 필드 생성
-  const dynamicFilterFields = columns.map((col) => ({
-    id: col.field,
-    label: col.title,
-    type: "text",
-    width: col.width,
-    enabled: true,
-  }));
 
   const loadData = async () => {
     setLoading(true);
@@ -193,9 +225,9 @@ const LoginHistory = () => {
         method: "POST",
         headers: { Authorization: `Bearer ${user?.token}` },
       });
-      console.log("Raw API Response:", response);
+      console.log("Fetch Response:", response);
       if (!response.success) {
-        // 수정: errorMsgPopup 제거, 데이터 비움
+        console.log("API Failure:", response.errMsg);
         setData([]);
         return;
       }
@@ -244,24 +276,114 @@ const LoginHistory = () => {
       setTableFilters(initialFilters(filterTableFields));
       setData([]);
       setIsSearched(false);
+    // 2025-06-23: 추가: 등록 이벤트 처리
+    } else if (eventType === "register") {
+      setIsPopupOpen(true);
     }
+    // 2025-06-23: 주석: 저장 버튼 이벤트는 팝업 내에서 처리하므로 여기서 제거
   }; //필터 수정: 검색 및 초기화 로직 처리
+
+  // 2025-06-23: 추가: 등록 데이터 저장 처리 함수
+  const handleSave = async () => {
+    const currentFilters = latestFiltersRef.current;
+    if (!insertData.empNo || !insertData.date || !insertData.userIp || !insertData.loginStatus) {
+      errorMsgPopup("필수 입력값을 모두 입력하세요.");
+      return;
+    }
+    if (insertData.month !== currentFilters.month) {
+      errorMsgPopup(`선택된 월(${currentFilters.month})에 맞는 데이터를 등록해야 합니다.`);
+      return;
+    }
+    setLoading(true);
+    try {
+      const saveData = {
+        empNo: insertData.empNo,
+        userIp: insertData.userIp,
+        userCongb: insertData.loginStatus,
+        dbCreatedDt: `${insertData.date} 00:00:00`,
+        debug: "F",
+      };
+      console.log("Sending save data:", saveData);
+      const response = await fetchData(api, `${common.getServerUrl("history/login/insert")}`, saveData, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      console.log("API response:", response);
+      if (response.success) {
+        await loadData();
+        setIsPopupOpen(false);
+        setInsertData({
+          month: currentFilters.month,
+          date: todayDate,
+          empNo: user?.empNo || "defaultEmpNo",
+          userIp: "",
+          loginStatus: "W",
+        });
+        msgPopup("데이터가 성공적으로 저장되었습니다.");
+      } else {
+        errorMsgPopup(`저장 실패: ${response.errMsg}`);
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      errorMsgPopup("저장 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2025-06-23: 추가: 삭제 처리 함수
+  // 2025-06-23 Fix: buttonElement 매개변수 제거 (더 이상 필요하지 않음)
+  const handleDelete = async (empNo, date) => {
+    const row = tableInstance.current.getRows().find((r) => r.getData().EMPNO === empNo && r.getData().DATE === date);
+    if (!row) {
+      errorMsgPopup("삭제할 행을 찾을 수 없습니다.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const deleteData = {
+        empNo,
+        dbCreatedDt: `${date} 00:00:00`,
+        debug: "F",
+      };
+      console.log("Sending delete data:", deleteData);
+      const response = await fetchData(api, `${common.getServerUrl("history/login/delete")}`, deleteData, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      if (response.success) {
+        // 행 즉시 삭제
+        tableInstance.current.deleteRow(row);
+        msgPopup("삭제 성공");
+        // 서버와 동기화 위해 데이터 새로고침
+        await loadData();
+      } else {
+        errorMsgPopup("삭제 실패: " + response.errMsg);
+      }
+    } catch (err) {
+      console.error("삭제 실패:", err);
+      errorMsgPopup("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const initializeTable = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       if (!tableRef.current) {
-        console.warn("테이블 컨테이너가 준비되지 않았습니다.");
+        // 수정: errorMsgPopup 제거
+        setError("테이블 컨테이너를 초기화할 수 없습니다.");
         return;
       }
       try {
+        // 2025-06-23 Fix: rowClick 이벤트 제거 (selectedRow 사용 안 함)
         tableInstance.current = createTable(tableRef.current, columns, [], {});
         if (!tableInstance.current) throw new Error("createTable returned undefined or null");
         setTableStatus("ready");
       } catch (err) {
         setTableStatus("error");
-        console.error("테이블 초기화 실패: ", err.message);
-        setError("테이블 초기화 중 오류 발생: " + err.message);
+        setError("테이블 초기화에 실패했습니다: " + err.message);
       }
     };
 
@@ -326,13 +448,21 @@ const LoginHistory = () => {
       {error && <div>{error}</div>}
       <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
       <TableSearch
-        filterFields={filterTableFields} // 기존 필터 필드 유지
-        filters={tableFilters} // 기존 필터 상태 사용
-        setFilters={setTableFilters} // 기존 필터 상태 업데이트 함수 사용
+        filterFields={filterTableFields}
+        filters={tableFilters}
+        setFilters={setTableFilters}
         onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "로그인_이력.xlsx")}
         rowCount={rowCount}
-        onEvent={handleDynamicEvent} // 수정: handleDynamicEvent 전달
-      />
+        onEvent={handleDynamicEvent}
+      >
+        {/* 2025-06-23: 추가: 등록 버튼 추가, 저장 버튼은 팝업에서 처리하므로 제거 */}
+        {/* 2025-06-23 Fix: 불필요한 저장 버튼 제거 */}
+        <div className={styles.btnGroupCustom}>
+          <button className={`${styles.btn} text-bg-success`} onClick={() => handleDynamicEvent("register")}>
+            등록
+          </button>
+        </div>
+      </TableSearch>
       <div className={styles.tableWrapper}>
         {tableStatus === "initializing" && <div>초기화 중...</div>}
         {loading && <div>로딩 중...</div>}
@@ -342,6 +472,71 @@ const LoginHistory = () => {
           style={{ visibility: loading || tableStatus !== "ready" ? "hidden" : "visible" }}
         />
       </div>
+      {/* 2025-06-23: 추가: 등록 팝업 컴포넌트 */}
+      <CommonPopup
+        show={isPopupOpen}
+        onHide={() => setIsPopupOpen(false)}
+        onConfirm={handleSave}
+        title="로그인 이력 등록"
+      >
+        <div>
+          <div className="mb-3">
+            <label htmlFor="monthInput" className="form-label">월:</label>
+            <input
+              type="text"
+              id="monthInput"
+              className="form-control"
+              value={insertData.month}
+              onChange={(e) => setInsertData((prev) => ({ ...prev, month: e.target.value }))}
+              placeholder="예: 2025-06"
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="dateInput" className="form-label">일자:</label>
+            <input
+              type="date"
+              id="dateInput"
+              className="form-control"
+              value={insertData.date}
+              onChange={(e) => setInsertData((prev) => ({ ...prev, date: e.target.value }))}
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="empNoInput" className="form-label">사원번호:</label>
+            <input
+              type="text"
+              id="empNoInput"
+              className="form-control"
+              value={insertData.empNo}
+              onChange={(e) => setInsertData((prev) => ({ ...prev, empNo: e.target.value }))}
+              placeholder="사원번호 입력"
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="userIpInput" className="form-label">사용자IP:</label>
+            <input
+              type="text"
+              id="userIpInput"
+              className="form-control"
+              value={insertData.userIp}
+              onChange={(e) => setInsertData((prev) => ({ ...prev, userIp: e.target.value }))}
+              placeholder="IP 입력"
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="loginStatusSelect" className="form-label">구분(Web/Mobile):</label>
+            <select
+              id="loginStatusSelect"
+              className="form-select"
+              value={insertData.loginStatus}
+              onChange={(e) => setInsertData((prev) => ({ ...prev, loginStatus: e.target.value }))}
+            >
+              <option value="W">Web</option>
+              <option value="M">Mobile</option>
+            </select>
+          </div>
+        </div>
+      </CommonPopup>
     </div>
   );
 };
