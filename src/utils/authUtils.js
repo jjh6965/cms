@@ -14,12 +14,6 @@ const PERMISSION_MAP = {
   permissions: ['AUTH0001'],
   test1: ['AUTH0001', 'AUTH0002', 'AUTH0003', '', null],
   tabulatorDirect: ['AUTH0001', 'AUTH0002', 'AUTH0003', '', null],
-  
-  // loginhistory: ['AUTH0001', 'AUTH0002', '', null],
-  // dbworkhistory: ['AUTH0001', 'AUTH0002', '', null],
-  // dbfileworkhistory: ['AUTH0001', 'AUTH0002', '', null],
-  // 새 항목 추가
-  // usermngnew: ['AUTH0001', 'AUTH0002','',null], // 백엔드 AUTHID와 맞춤
 };
 
 export function hasPermission(userAuth, screen) {

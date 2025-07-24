@@ -10,13 +10,12 @@ import styles from '../../components/table/TableSearch.module.css';
 import sampleData from '../../data/data.json';
 
 /**
- * 필드 옵션 데이터를 반환   
+ * 필드 옵션 데이터를 반환
  * @param {string} fieldId - 필드 식별자
  * @param {string} dependentValue - 의존 값
  * @returns {Array} 옵션 배열
  */
 const getFieldOptions = (fieldId, dependentValue = '') => {
-  console.log('AAA');
   const optionsMap = {
     status: [
       { value: '', label: '전체' },
