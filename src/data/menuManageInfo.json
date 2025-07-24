@@ -158,5 +158,13 @@
 		"LEAFMENUYN" : "N",
 		"MENUORDER" : "2",
 		"USEYN" : "Y"
-	}
+	},
+
+
+
+  { "MENUID": "MENU0000", "MENUNM": "메인화면", "UPPERMENUID": "", "URL": "/main", "MENULEVEL": "0", "LEAFMENUYN": "N", "MENUORDER": "1", "USEYN": "Y" },
+  { "MENUID": "MENU0006", "MENUNM": "월별이력", "UPPERMENUID": "", "URL": "", "MENULEVEL": "1", "LEAFMENUYN": "N", "MENUORDER": "6", "USEYN": "Y" },
+  { "MENUID": "MENU0061", "MENUNM": "로그인 이력", "UPPERMENUID": "MENU0006", "URL": "/cms/main/loginhistory", "MENULEVEL": "2", "LEAFMENUYN": "Y", "MENUORDER": "1", "USEYN": "Y" },
+  { "MENUID": "MENU0062", "MENUNM": "DB 작업 이력", "UPPERMENUID": "MENU0006", "URL": "/cms/main/dbworkhistory", "MENULEVEL": "2", "LEAFMENUYN": "Y", "MENUORDER": "2", "USEYN": "Y" },
+  { "MENUID": "MENU0063", "MENUNM": "DB 파일 작업 이력", "UPPERMENUID": "MENU0006", "URL": "/cms/main/dbfileworkhistory", "MENULEVEL": "2", "LEAFMENUYN": "Y", "MENUORDER": "3", "USEYN": "Y" }
 ]

@@ -1,542 +1,1274 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useStore from "../../store/store";
 import { hasPermission } from "../../utils/authUtils";
-import MainSearch from "../../components/main/MainSearch";
-import TableSearch from "../../components/table/TableSearch";
-import { createTable } from "../../utils/tableConfig";
-import { initialFilters } from "../../utils/tableEvent";
-import { handleDownloadExcel } from "../../utils/tableExcel";
-import styles from "../../components/table/TableSearch.module.css";
-import { fetchData } from "../../utils/dataUtils";
-import api from "../../utils/api";
-import common from "../../utils/common";
-// 2025-06-23: 추가: 등록 팝업과 메시지 팝업을 위한 컴포넌트 및 유틸리티 import
 import CommonPopup from "../../components/popup/CommonPopup";
-import { errorMsgPopup } from "../../utils/errorMsgPopup";
-import { msgPopup } from "../../utils/msgPopup";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
+/**
+ * 프리미엄 공유 오피스 예약 시스템
+ * WeWork 스타일의 고급스러운 UI/UX를 제공하는 룸 예약 시스템
+ * 기존 CommonPopup 비즈니스 로직을 유지하면서 세련된 디자인 적용
+ */
 const LoginHistory = () => {
   const { user } = useStore();
   const navigate = useNavigate();
-  const [filters, setFilters] = useState({});
-  const [tableFilters, setTableFilters] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState([]);
-  const [isSearched, setIsSearched] = useState(false);
-  const [tableStatus, setTableStatus] = useState("initializing");
-  const [error, setError] = useState(null);
-  const [rowCount, setRowCount] = useState(0);
-  const tableRef = useRef(null);
-  const tableInstance = useRef(null);
-  const isInitialRender = useRef(true);
-  const latestFiltersRef = useRef(filters);
 
-  const today = new Date(); // 수정: 고정된 날짜 대신 현재 날짜 사용
-  const todayMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
-  // 2025-06-23: 추가: 등록 팝업에서 사용할 오늘 날짜
-  const todayDate = today.toISOString().slice(0, 10);
+  // 동적 룸 데이터 상태 관리
+  const [rooms, setRooms] = useState([
+    { 
+      id: "4A", 
+      label: "4인실-A", 
+      type: "프리미엄", 
+      capacity: 4,
+      x: 0, 
+      y: 0, 
+      width: 7, 
+      height: 1, 
+      color: "#FF6B35", 
+      status: "예약가능", 
+      price: 80000,
+      amenities: ["4K 모니터", "화상회의 시설", "프리미엄 의자", "화이트보드"]
+    },
+    { 
+      id: "4B", 
+      label: "4인실-B", 
+      type: "프리미엄", 
+      capacity: 4,
+      x: 7, 
+      y: 0, 
+      width: 12, 
+      height: 1, 
+      color: "#FF6B35", 
+      status: "예약가능", 
+      price: 80000,
+      amenities: ["4K 모니터", "화상회의 시설", "프리미엄 의자", "화이트보드"]
+    },
+    { 
+      id: "1A", 
+      label: "1인실-A", 
+      type: "프라이빗", 
+      capacity: 1,
+      x: 0, 
+      y: 1, 
+      width: 3, // Increased width to prevent overlap
+      height: 1, 
+      color: "#9D4EDD", 
+      status: "예약가능", 
+      price: 30000,
+      amenities: ["개인 데스크", "조명 조절", "집중형 환경"]
+    },
+    { 
+      id: "1B", 
+      label: "1인실-B", 
+      type: "프라이빗", 
+      capacity: 1,
+      x: 0, 
+      y: 2, 
+      width: 3, // Increased width to prevent overlap
+      height: 1, 
+      color: "#9D4EDD", 
+      status: "예약가능", 
+      price: 30000,
+      amenities: ["개인 데스크", "조명 조절", "집중형 환경"]
+    },
+    { 
+      id: "1C", 
+      label: "1인실-C", 
+      type: "프라이빗", 
+      capacity: 1,
+      x: 0, 
+      y: 3, 
+      width: 3, // Increased width to prevent overlap
+      height: 1, 
+      color: "#9D4EDD", 
+      status: "예약가능", 
+      price: 30000,
+      amenities: ["개인 데스크", "조명 조절", "집중형 환경"]
+    },
+    { 
+      id: "1D", 
+      label: "1인실-D", 
+      type: "프라이빗", 
+      capacity: 1,
+      x: 0, 
+      y: 4, 
+      width: 3, // Increased width to prevent overlap
+      height: 1, 
+      color: "#9D4EDD", 
+      status: "예약가능", 
+      price: 30000,
+      amenities: ["개인 데스크", "조명 조절", "집중형 환경"]
+    },
+    { 
+      id: "2A", 
+      label: "2인실-A", 
+      type: "스탠다드", 
+      capacity: 2,
+      x: 10, 
+      y: 1, 
+      width: 9, // Increased width to prevent overlap
+      height: 1, 
+      color: "#4CC9F0", 
+      status: "예약가능", 
+      price: 50000,
+      amenities: ["듀얼 모니터", "에르고노믹 의자", "개인 사물함", "화이트보드"]
+    },
+    { 
+      id: "2B", 
+      label: "2인실-B", 
+      type: "스탠다드", 
+      capacity: 2,
+      x: 10, 
+      y: 2, 
+      width: 9, // Increased width to prevent overlap
+      height: 1, 
+      color: "#4CC9F0", 
+      status: "예약가능", 
+      price: 50000,
+      amenities: ["듀얼 모니터", "에르고노믹 의자", "개인 사물함", "화이트보드"]
+    },
+    { 
+      id: "2C", 
+      label: "2인실-C", 
+      type: "스탠다드", 
+      capacity: 2,
+      x: 10, 
+      y: 3, 
+      width: 9, // Increased width to prevent overlap
+      height: 1, 
+      color: "#4CC9F0", 
+      status: "예약가능", 
+      price: 50000,
+      amenities: ["듀얼 모니터", "에르고노믹 의자", "개인 사물함", "화이트보드"]
+    },
+    { 
+      id: "2D", 
+      label: "2인실-D", 
+      type: "스탠다드", 
+      capacity: 2,
+      x: 10, 
+      y: 4, 
+      width: 9, // Increased width to prevent overlap
+      height: 1, 
+      color: "#4CC9F0", 
+      status: "예약가능", 
+      price: 50000,
+      amenities: ["듀얼 모니터", "에르고노믹 의자", "개인 사물함", "화이트보드"]
+    },
+  ]);
 
-  // 2025-06-23: 추가: 등록 팝업에서 사용할 입력 데이터 상태
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [insertData, setInsertData] = useState({
-    month: todayMonth,
-    date: todayDate,
-    empNo: user?.empNo || "defaultEmpNo",
-    userIp: "",
-    loginStatus: "W",
-  });
+  const [reservedRooms, setReservedRooms] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [userInfo, setUserInfo] = useState({ name: "", gender: "", phone: "", date: null, duration: "" });
 
-  const searchConfig = {
-    areas: [
-      {
-        type: "search",
-        fields: [
-          {
-            id: "month",
-            type: "select",
-            row: 1,
-            label: "월 선택",
-            labelVisible: true,
-            options: [
-              { value: todayMonth, label: todayMonth }, // 현재 월(2025-06)을 첫 번째로
-              ...Array.from({ length: today.getMonth() }, (_, i) => {
-                const month = (today.getMonth() - i).toString().padStart(2, "0"); // 역순으로 이전 월
-                return { value: `2025-${month}`, label: `2025-${month}` };
-              }),
-              ...Array.from({ length: 12 - today.getMonth() - 1 }, (_, i) => {
-                const month = (today.getMonth() + 1 + i + 1).toString().padStart(2, "0"); // 이후 월
-                return { value: `2025-${month}`, label: `2025-${month}` };
-              }),
-            ].filter(
-              (item, index, self) => index === self.findIndex((t) => t.value === item.value) // 중복 제거
-            ),
-            width: "200px",
-            height: "30px",
-            backgroundColor: "#ffffff",
-            color: "#000000",
-            enabled: true,
-            defaultValue: todayMonth,
-          },
-        ],
-      },
-      // 수정: searchBtn을 buttons 영역으로 이동하여 우측 끝 배치 (UserAuthManage.jsx 참고)
-      {
-        type: "buttons",
-        fields: [
-          {
-            id: "searchBtn",
-            type: "button",
-            row: 1,
-            label: "검색",
-            eventType: "search",
-            width: "80px",
-            height: "30px",
-            backgroundColor: "#00c4b4",
-            color: "#ffffff",
-            enabled: true,
-            labelVisible: false,
-          },
-          // 2025-06-23: 추가: 초기화 버튼 활성화
-          {
-            id: "resetBtn",
-            type: "button",
-            row: 1,
-            label: "초기화",
-            eventType: "reset",
-            width: "80px",
-            height: "30px",
-            backgroundColor: "#00c4b4",
-            color: "#ffffff",
-            enabled: true,
-            labelVisible: false,
-          },
-        ],
-      },
-    ],
+  // 통계 데이터 계산
+  const getStatistics = () => {
+    const totalRooms = rooms.length;
+    const availableRooms = rooms.filter(room => room.status === "예약가능").length;
+    const reservedRoomsCount = totalRooms - availableRooms;
+    const occupancyRate = totalRooms > 0 ? Math.round((reservedRoomsCount / totalRooms) * 100) : 0;
+    
+    return {
+      totalRooms,
+      availableRooms,
+      reservedRooms: reservedRoomsCount,
+      occupancyRate,
+      satisfactionRate: 98
+    };
   };
 
-  // 수정: filterTableFields를 columns에 맞게 조정
-  const filterTableFields = [
-    {
-      id: "filterSelect",
-      type: "select",
-      label: "",
-      options: [
-        { value: "", label: "선택" },
-        { value: "MONTH", label: "월" },
-        { value: "DATE", label: "일자" },
-        { value: "EMPNO", label: "사원번호" },
-        { value: "EMPNM", label: "이름" },
-        { value: "USERIP", label: "사용자IP" },
-        { value: "LOGIN_STATUS", label: "구분(Web/Mobile)" },
-      ],
-      width: "default",
-      height: "default",
-      backgroundColor: "default",
-      color: "default",
-      enabled: true,
-    },
-    {
-      id: "filterText",
-      type: "text",
-      label: "",
-      placeholder: "찾을 내용을 입력하세요",
-      width: "default",
-      height: "default",
-      backgroundColor: "default",
-      color: "default",
-      enabled: true,
-    },
-  ];
-
-  useEffect(() => {
-    setFilters(initialFilters(searchConfig.areas.find((area) => area.type === "search").fields));
-    setTableFilters(initialFilters(filterTableFields));
-  }, []);
-
-  useEffect(() => {
-    latestFiltersRef.current = filters;
-    // 2025-06-23: 추가: 필터 변경 시 등록 데이터의 월 동기화
-    if (filters.month) {
-      setInsertData((prev) => ({ ...prev, month: filters.month }));
+  /**
+   * 룸 클릭 이벤트 처리
+   * 예약 가능 상태일 때만 팝업 표시
+   */
+  const handleRoomClick = (room) => {
+    if (room.status === "예약가능") {
+      setSelectedRoom(room);
+      setShowPopup(true);
+    } else {
+      alert(`${room.label}은(는) 이미 예약되었습니다.`);
     }
-  }, [filters]);
+  };
 
+  /**
+   * 사용자 입력값 변경 처리
+   */
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUserInfo((prev) => ({ ...prev, [name]: value }));
+  };
+
+  /**
+   * 날짜 변경 처리
+   */
+  const handleDateChange = (date) => {
+    setUserInfo((prev) => ({ ...prev, date }));
+  };
+
+  /**
+   * 예약 기간 버튼 클릭 처리
+   */
+  const handleDurationClick = (duration) => {
+    setUserInfo((prev) => ({ ...prev, duration }));
+  };
+
+  /**
+   * 예약 확정 처리 - CommonPopup 비즈니스 로직 유지
+   */
+  const handleConfirm = () => {
+    if (userInfo.name && userInfo.gender && userInfo.phone && userInfo.date && userInfo.duration) {
+      setReservedRooms([...reservedRooms, selectedRoom.id]);
+      setRooms(rooms.map((room) => 
+        room.id === selectedRoom.id ? { ...room, status: "사용 중" } : room
+      ));
+      console.log("예약 확정:", { room: selectedRoom.label, ...userInfo });
+      setShowPopup(false);
+      setSelectedRoom(null);
+      setUserInfo({ name: "", gender: "", phone: "", date: null, duration: "" });
+      alert(`${selectedRoom.label} 예약이 완료되었습니다!`);
+    } else {
+      alert("모든 필수 정보를 입력해주세요.");
+    }
+  };
+
+  /**
+   * 예약 취소 처리
+   */
+  const handleCancel = () => {
+    setShowPopup(false);
+    setSelectedRoom(null);
+    setUserInfo({ name: "", gender: "", phone: "", date: null, duration: "" });
+  };
+
+  // 사용자 권한 체크
   useEffect(() => {
-    if (!user || !hasPermission(user.auth, "loginHistory")) navigate("/");
+    if (!user || !hasPermission(user.auth, "reservationManage")) navigate("/");
   }, [user, navigate]);
 
-  const columns = [
-    { title: "월", field: "MONTH", width: 100, headerHozAlign: "center", hozAlign: "center" },
-    { title: "일자", field: "DATE", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    { title: "사원번호", field: "EMPNO", width: 120, headerHozAlign: "center", hozAlign: "center" },
-    { title: "이름", field: "EMPNM", width: 120, headerHozAlign: "center", hozAlign: "center" },
-    { title: "사용자IP", field: "USERIP", width: 150, headerHozAlign: "center", hozAlign: "center" },
-    {
-      title: "구분(Web/Mobile)",
-      field: "LOGIN_STATUS",
-      width: 150,
-      headerHozAlign: "center",
-      hozAlign: "center",
-      formatter: (cell) => {
-        const value = cell.getValue();
-        return value === "W" ? "Web" : value === "M" ? "Mobile" : value;
-      },
-    },
-    // 2025-06-23: 추가: 삭제 버튼 열 추가
-    // 2025-06-23 Fix: window.handleDeleteRow 대신 React 이벤트 핸들러 사용
-    {
-      title: "",
-      field: "delete",
-      width: 50,
-      headerHozAlign: "center",
-      hozAlign: "center",
-      formatter: (cell) => {
-        const rowData = cell.getRow().getData();
-        const button = document.createElement("button");
-        button.className = styles.deleteBtn;
-        button.textContent = "삭제";
-        button.addEventListener("click", (e) => {
-          e.stopPropagation();
-          handleDelete(rowData.EMPNO, rowData.DATE);
-        });
-        return button;
-      },
-    },
-  ];
-
-  const loadData = async () => {
-    setLoading(true);
-    setIsSearched(true);
-    setError(null);
-
-    const currentFilters = latestFiltersRef.current;
-
-    const params = {
-      pMDATE: currentFilters.month || todayMonth.replace("-", ""), // YYYYMM 형식
-      pDEBUG: "F",
-    };
-    console.log("Fetching data with params:", params);
-    console.log("Full API URL:", `${common.getServerUrl("history/login/list")}`);
-
-    try {
-      const response = await fetchData(api, `${common.getServerUrl("history/login/list")}`, params, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
-      console.log("Fetch Response:", response);
-      if (!response.success) {
-        console.log("API Failure:", response.errMsg);
-        setData([]);
-        return;
-      }
-      if (response.errMsg !== "") {
-        // 수정: errorMsgPopup 제거, 데이터 비움
-        setData([]);
-        return;
-      }
-      const responseData = response.data || [];
-      if (!Array.isArray(responseData)) {
-        console.error("응답 데이터가 배열이 아님:", responseData);
-        setData([]);
-        return;
-      }
-      const mappedData = responseData.map((item) => {
-        if (item.vQuery) {
-          console.warn("Received vQuery instead of data:", item.vQuery);
-          return {};
-        }
-        return {
-          MONTH: item.MONTH || "",
-          DATE: item.DATE ? item.DATE.substring(0, 10) : "",
-          EMPNO: item.EMPNO || "",
-          EMPNM: item.EMPNM || "",
-          USERIP: item.USERIP || "",
-          LOGIN_STATUS: item.USERCONGB || "",
-        };
-      });
-      setData(mappedData);
-      console.log("Mapped data:", mappedData);
-    } catch (err) {
-      console.error("데이터 로드 실패:", err);
-      // 수정: errorMsgPopup 제거, 데이터 비움
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 필터 수정: handleDynamicEvent 함수 추가
-  const handleDynamicEvent = (eventType) => {
-    if (eventType === "search") {
-      loadData();
-    } else if (eventType === "reset") {
-      setFilters(initialFilters(searchConfig.areas.find((area) => area.type === "search").fields));
-      setTableFilters(initialFilters(filterTableFields));
-      setData([]);
-      setIsSearched(false);
-    // 2025-06-23: 추가: 등록 이벤트 처리
-    } else if (eventType === "register") {
-      setIsPopupOpen(true);
-    }
-    // 2025-06-23: 주석: 저장 버튼 이벤트는 팝업 내에서 처리하므로 여기서 제거
-  }; //필터 수정: 검색 및 초기화 로직 처리
-
-  // 2025-06-23: 추가: 등록 데이터 저장 처리 함수
-  const handleSave = async () => {
-    const currentFilters = latestFiltersRef.current;
-    if (!insertData.empNo || !insertData.date || !insertData.userIp || !insertData.loginStatus) {
-      errorMsgPopup("필수 입력값을 모두 입력하세요.");
-      return;
-    }
-    if (insertData.month !== currentFilters.month) {
-      errorMsgPopup(`선택된 월(${currentFilters.month})에 맞는 데이터를 등록해야 합니다.`);
-      return;
-    }
-    setLoading(true);
-    try {
-      const saveData = {
-        empNo: insertData.empNo,
-        userIp: insertData.userIp,
-        userCongb: insertData.loginStatus,
-        dbCreatedDt: `${insertData.date} 00:00:00`,
-        debug: "F",
-      };
-      console.log("Sending save data:", saveData);
-      const response = await fetchData(api, `${common.getServerUrl("history/login/insert")}`, saveData, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
-      console.log("API response:", response);
-      if (response.success) {
-        await loadData();
-        setIsPopupOpen(false);
-        setInsertData({
-          month: currentFilters.month,
-          date: todayDate,
-          empNo: user?.empNo || "defaultEmpNo",
-          userIp: "",
-          loginStatus: "W",
-        });
-        msgPopup("데이터가 성공적으로 저장되었습니다.");
-      } else {
-        errorMsgPopup(`저장 실패: ${response.errMsg}`);
-      }
-    } catch (err) {
-      console.error("Save error:", err);
-      errorMsgPopup("저장 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2025-06-23: 추가: 삭제 처리 함수
-  // 2025-06-23 Fix: buttonElement 매개변수 제거 (더 이상 필요하지 않음)
-  const handleDelete = async (empNo, date) => {
-    const row = tableInstance.current.getRows().find((r) => r.getData().EMPNO === empNo && r.getData().DATE === date);
-    if (!row) {
-      errorMsgPopup("삭제할 행을 찾을 수 없습니다.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const deleteData = {
-        empNo,
-        dbCreatedDt: `${date} 00:00:00`,
-        debug: "F",
-      };
-      console.log("Sending delete data:", deleteData);
-      const response = await fetchData(api, `${common.getServerUrl("history/login/delete")}`, deleteData, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
-      if (response.success) {
-        // 행 즉시 삭제
-        tableInstance.current.deleteRow(row);
-        msgPopup("삭제 성공");
-        // 서버와 동기화 위해 데이터 새로고침
-        await loadData();
-      } else {
-        errorMsgPopup("삭제 실패: " + response.errMsg);
-      }
-    } catch (err) {
-      console.error("삭제 실패:", err);
-      errorMsgPopup("삭제 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const initializeTable = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      if (!tableRef.current) {
-        // 수정: errorMsgPopup 제거
-        setError("테이블 컨테이너를 초기화할 수 없습니다.");
-        return;
-      }
-      try {
-        // 2025-06-23 Fix: rowClick 이벤트 제거 (selectedRow 사용 안 함)
-        tableInstance.current = createTable(tableRef.current, columns, [], {});
-        if (!tableInstance.current) throw new Error("createTable returned undefined or null");
-        setTableStatus("ready");
-      } catch (err) {
-        setTableStatus("error");
-        setError("테이블 초기화에 실패했습니다: " + err.message);
-      }
-    };
-
-    initializeTable();
-
-    return () => {
-      if (tableInstance.current) {
-        tableInstance.current.destroy();
-        tableInstance.current = null;
-        setTableStatus("initializing");
-      }
-    };
-  }, []);
-
-  // 필터 기능
-  useEffect(() => {
-    if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
-    const { filterSelect, filterText } = tableFilters;
-    if (filterText && filterSelect) {
-      tableInstance.current.setFilter(filterSelect, "like", filterText);
-    } else if (filterText) {
-      tableInstance.current.setFilter(
-        [
-          { field: "MONTH", type: "like", value: filterText },
-          { field: "DATE", type: "like", value: filterText },
-          { field: "EMPNO", type: "like", value: filterText },
-          { field: "EMPNM", type: "like", value: filterText },
-          { field: "USERIP", type: "like", value: filterText },
-          { field: "LOGIN_STATUS", type: "like", value: filterText },
-        ],
-        "or"
-      );
-    } else {
-      tableInstance.current.clearFilter();
-    }
-  }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
-
-  //DB 없는 월 오류 alert 제거
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    const table = tableInstance.current;
-    if (!table || tableStatus !== "ready" || loading) return;
-    if (table.rowManager?.renderer) {
-      table.setData(data);
-      if (isSearched && data.length === 0 && !loading) {
-        // 수정: alert 제거 및 데이터 클리어
-        table.clearData();
-      } else {
-        table.clearAlert(); // 기존 alert 제거
-        setRowCount(table.getDataCount());
-      }
-    } else {
-      console.warn("renderer가 아직 초기화되지 않았습니다.");
-    }
-  }, [data, loading, tableStatus, isSearched]);
+  const statistics = getStatistics();
 
   return (
-    <div className={styles.container}>
-      {error && <div>{error}</div>}
-      <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
-      <TableSearch
-        filterFields={filterTableFields}
-        filters={tableFilters}
-        setFilters={setTableFilters}
-        onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "로그인_이력.xlsx")}
-        rowCount={rowCount}
-        onEvent={handleDynamicEvent}
-      >
-        {/* 2025-06-23: 추가: 등록 버튼 추가, 저장 버튼은 팝업에서 처리하므로 제거 */}
-        {/* 2025-06-23 Fix: 불필요한 저장 버튼 제거 */}
-        <div className={styles.btnGroupCustom}>
-          <button className={`${styles.btn} text-bg-success`} onClick={() => handleDynamicEvent("register")}>
-            등록
-          </button>
+    <div style={{ 
+      minHeight: "100vh", 
+      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    }}>
+      {/* 프리미엄 헤더 */}
+      <header style={{
+        background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+        padding: "1.5rem 0"
+      }}>
+        <div style={{
+          maxWidth: "1400px",
+          margin: "0 auto",
+          padding: "0 2rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div style={{
+              width: "50px",
+              height: "50px",
+              background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+              borderRadius: "12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "24px",
+              color: "white",
+              fontWeight: "bold"
+            }}>
+              🏢
+            </div>
+            <div>
+              <h1 style={{
+                color: "white",
+                fontSize: "2rem",
+                fontWeight: "700",
+                margin: 0,
+                background: "linear-gradient(45deg, #FFD700, #FFA500)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent"
+              }}>
+                (주)시키면한다432
+              </h1>
+              <p style={{
+                color: "#a8b9ff",
+                fontSize: "0.9rem",
+                margin: 0,
+                fontWeight: "400"
+              }}>
+                A section 공유 오피스
+              </p>
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <span style={{ 
+              color: "#FFD700", 
+              fontSize: "1rem",
+              fontWeight: "500" 
+            }}>
+              관리자
+            </span>
+            <div style={{
+              width: "40px",
+              height: "40px",
+              background: "linear-gradient(135deg, #FFD700, #FFA500)",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              fontWeight: "bold",
+              fontSize: "1rem"
+            }}>
+              JB
+            </div>
+          </div>
         </div>
-      </TableSearch>
-      <div className={styles.tableWrapper}>
-        {tableStatus === "initializing" && <div>초기화 중...</div>}
-        {loading && <div>로딩 중...</div>}
-        <div
-          ref={tableRef}
-          className={styles.tableSection}
-          style={{ visibility: loading || tableStatus !== "ready" ? "hidden" : "visible" }}
-        />
-      </div>
-      {/* 2025-06-23: 추가: 등록 팝업 컴포넌트 */}
+      </header>
+
+      {/* 메인 컨텐츠 */}
+      <main style={{ padding: "3rem 2rem" }}>
+        <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+          
+          {/* 페이지 타이틀 */}
+          <div style={{ textAlign: "center", marginBottom: "3rem" }}>
+            <h2 style={{
+              fontSize: "3rem",
+              fontWeight: "800",
+              color: "white",
+              textShadow: "2px 4px 12px rgba(0,0,0,0.3)",
+              marginBottom: "1rem"
+            }}>
+              3F - 1/2/4인실
+            </h2>
+            <p style={{
+              fontSize: "1.2rem",
+              color: "rgba(255,255,255,0.9)",
+              maxWidth: "600px",
+              margin: "0 auto",
+              lineHeight: "1.6"
+            }}>
+              최신 시설과 편안한 환경을 제공하는 프리미엄 공유 오피스에서 
+              여러분의 비즈니스를 성장시켜보세요.
+            </p>
+          </div>
+
+          {/* 통계 대시보드 - 수정: 4칸을 1줄로 재배치 */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)", // Modified to 4 columns in one row
+            gap: "1.5rem",
+            marginBottom: "3rem"
+          }}>
+            <div style={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              padding: "2rem",
+              borderRadius: "20px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  🏠
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: "2.5rem",
+                    fontWeight: "700",
+                    color: "white",
+                    margin: 0
+                  }}>
+                    {statistics.totalRooms}
+                  </p>
+                  <p style={{
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "1rem",
+                    margin: 0
+                  }}>
+                    전체 룸
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+              padding: "2rem",
+              borderRadius: "20px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  ✅
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: "2.5rem",
+                    fontWeight: "700",
+                    color: "white",
+                    margin: 0
+                  }}>
+                    {statistics.availableRooms}
+                  </p>
+                  <p style={{
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "1rem",
+                    margin: 0
+                  }}>
+                    이용 가능
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+              padding: "2rem",
+              borderRadius: "20px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  📊
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: "2.5rem",
+                    fontWeight: "700",
+                    color: "white",
+                    margin: 0
+                  }}>
+                    {statistics.occupancyRate}%
+                  </p>
+                  <p style={{
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "1rem",
+                    margin: 0
+                  }}>
+                    점유율
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+              padding: "2rem",
+              borderRadius: "20px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  ⭐
+                </div>
+                <div>
+                  <p style={{
+                    fontSize: "2.5rem",
+                    fontWeight: "700",
+                    color: "white",
+                    margin: 0
+                  }}>
+                    {statistics.satisfactionRate}%
+                  </p>
+                  <p style={{
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: "1rem",
+                    margin: 0
+                  }}>
+                    만족도
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 플로어 맵 */}
+          <div style={{
+            background: "rgba(255,255,255,0.95)",
+            borderRadius: "25px",
+            padding: "3rem",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+            border: "1px solid rgba(255,255,255,0.3)",
+            backdropFilter: "blur(10px)"
+          }}>
+            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+              {/* <h3 style={{
+                fontSize: "2rem",
+                fontWeight: "700",
+                color: "#2c3e50",
+                marginBottom: "0.5rem"
+              }}>
+                플로어 맵
+              </h3> */}
+              <p style={{
+                color: "#7f8c8d",
+                fontSize: "1.1rem"
+              }}>
+                원하시는 룸을 클릭하여 예약하세요
+              </p>
+            </div>
+            
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(12, 1fr)", // Increased columns to accommodate wider rooms
+              gap: "1rem",
+              maxWidth: "1200px",
+              margin: "0 auto"
+            }}>
+              {/* 룸 버튼들 렌더링 */}
+              {rooms.map((room) => (
+                <div
+                  key={room.id}
+                  style={{
+                    gridColumn: `${room.x + 1} / span ${room.width}`,
+                    gridRow: `${room.y + 1} / span ${room.height}`,
+                    background: room.status === "사용 중" 
+                      ? "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
+                      : `linear-gradient(135deg, ${room.color} 0%, ${room.color}dd 100%)`,
+                    borderRadius: "15px",
+                    padding: "1.5rem",
+                    cursor: room.status === "사용 중" ? "not-allowed" : "pointer",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    position: "relative",
+                    overflow: "hidden",
+                    boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+                    border: "2px solid rgba(255,255,255,0.2)",
+                    minHeight: "120px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    transform: room.status === "사용 중" ? "none" : "translateY(0)",
+                  }}
+                  onClick={() => handleRoomClick(room)}
+                  onMouseEnter={(e) => {
+                    if (room.status !== "사용 중") {
+                      e.target.style.transform = "translateY(-8px) scale(1.02)";
+                      e.target.style.boxShadow = "0 15px 40px rgba(0,0,0,0.25)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (room.status !== "사용 중") {
+                      e.target.style.transform = "translateY(0) scale(1)";
+                      e.target.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                    }
+                  }}
+                >
+                  {/* 룸 상태 배지 */}
+                  <div style={{
+                    position: "absolute",
+                    top: "10px",
+                    right: "10px",
+                    background: room.status === "예약가능" 
+                      ? "rgba(46, 204, 113, 0.9)" 
+                      : "rgba(231, 76, 60, 0.9)",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "12px",
+                    fontSize: "0.7rem",
+                    fontWeight: "600"
+                  }}>
+                    {room.status === "예약가능" ? "이용가능" : "예약완료"}
+                  </div>
+
+                  <div style={{
+                    textAlign: "center",
+                    color: "white",
+                    textShadow: "1px 2px 4px rgba(0,0,0,0.3)"
+                  }}>
+                    <h4 style={{
+                      fontSize: "1.3rem",
+                      fontWeight: "700",
+                      margin: "0 0 0.5rem 0"
+                    }}>
+                      {room.label}
+                    </h4>
+                    <p style={{
+                      fontSize: "0.9rem",
+                      opacity: 0.9,
+                      margin: "0 0 0.5rem 0"
+                    }}>
+                      {room.type} • {room.capacity}명
+                    </p>
+                    <p style={{
+                      fontSize: "1rem",
+                      fontWeight: "600",
+                      margin: 0
+                    }}>
+                      ₩{room.price.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {/* 카페 스타일 라운지 공간 */}
+              <div
+                style={{
+                  gridColumn: "4 / span 7",
+                  gridRow: "2 / span 4",
+                  background: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+                  borderRadius: "20px",
+                  padding: "2rem",
+                  position: "relative",
+                  overflow: "hidden",
+                  boxShadow: "0 15px 35px rgba(0,0,0,0.1)",
+                  border: "3px solid rgba(255,255,255,0.3)",
+                  minHeight: "300px"
+                }}
+              >
+                {/* 라운지 라벨 */}
+                <div style={{
+                  position: "absolute",
+                  top: "15px",
+                  left: "15px",
+                  background: "rgba(52, 152, 219, 0.9)",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "0.9rem",
+                  fontWeight: "600"
+                }}>
+                  🏖️ 카페 라운지
+                </div>
+
+                {/* 카페 바 카운터 */}
+                <div style={{
+                  position: "absolute",
+                  top: "60px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "linear-gradient(135deg, #8B4513 0%, #D2691E 100%)",
+                  borderRadius: "15px",
+                  padding: "15px 25px",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+                  textAlign: "center"
+                }}>
+                  <div style={{
+                    fontSize: "1.5rem",
+                    marginBottom: "5px"
+                  }}>☕</div>
+                  <div style={{
+                    color: "white",
+                    fontSize: "0.8rem",
+                    fontWeight: "600"
+                  }}>Coffee Bar</div>
+                </div>
+
+                {/* 라운지 소파 구역 */}
+                <div style={{
+                  position: "absolute",
+                  top: "140px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px"
+                }}>
+                  <div style={{
+                    width: "35px",
+                    height: "20px",
+                    background: "linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
+                  }}></div>
+                  <div style={{
+                    width: "25px",
+                    height: "15px",
+                    background: "linear-gradient(135deg, #FF8E53 0%, #FF6B35 100%)",
+                    borderRadius: "50%",
+                    boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
+                  }}></div>
+                  <div style={{
+                    width: "35px",
+                    height: "20px",
+                    background: "linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
+                  }}></div>
+                </div>
+
+                {/* 원형 카페 테이블들 */}
+                <div style={{
+                  position: "absolute",
+                  bottom: "80px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "15px"
+                }}>
+                  <div style={{
+                    width: "30px",
+                    height: "30px",
+                    background: "linear-gradient(135deg, #F4D03F 0%, #F7DC6F 100%)",
+                    borderRadius: "50%",
+                    border: "3px solid #E67E22",
+                    boxShadow: "0 6px 12px rgba(0,0,0,0.1)"
+                  }}></div>
+                  <div style={{
+                    width: "30px",
+                    height: "30px",
+                    background: "linear-gradient(135deg, #F4D03F 0%, #F7DC6F 100%)",
+                    borderRadius: "50%",
+                    border: "3px solid #E67E22",
+                    boxShadow: "0 6px 12px rgba(0,0,0,0.1)"
+                  }}></div>
+                </div>
+
+                {/* 편의시설 아이콘들 */}
+                <div style={{
+                  position: "absolute",
+                  bottom: "40px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  gap: "10px",
+                  fontSize: "1.2rem"
+                }}>
+                  <span title="무료 WiFi">📶</span>
+                  <span title="커피 무료">☕</span>
+                  <span title="휴식 공간">🛋️</span>
+                  <span title="업무 공간">💻</span>
+                </div>
+
+                {/* 입구 표시 */}
+                <div style={{
+                  position: "absolute",
+                  bottom: "10px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  animation: "pulse 2s infinite"
+                }}>
+                  <div style={{
+                    fontSize: "1.2rem",
+                    color: "#e74c3c"
+                  }}>🔽</div>
+                  <span style={{
+                    color: "#e74c3c",
+                    fontWeight: "700",
+                    fontSize: "0.7rem"
+                  }}>입구</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+  {/* 룸 타입 가이드 - 수정: flex로 1줄로 재배치 */}
+          <div style={{
+            marginTop: "3rem",
+            background: "rgba(255,255,255,0.95)",
+            borderRadius: "20px",
+            padding: "2.5rem",
+            boxShadow: "0 15px 35px rgba(0,0,0,0.1)",
+            backdropFilter: "blur(10px)"
+          }}>
+            <h4 style={{
+              fontSize: "1.5rem",
+              fontWeight: "700",
+              color: "#2c3e50",
+              marginBottom: "2rem",
+              textAlign: "center"
+            }}>
+
+룸 타입 가이드
+            </h4>
+            <div style={{
+              display: "flex", // Changed to flex for single row
+              gap: "1rem",
+              justifyContent: "space-between" // Distribute items evenly
+            }}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "1rem",
+                padding: "1.5rem",
+                background: "linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)",
+                borderRadius: "15px",
+                color: "white",
+                boxShadow: "0 8px 20px rgba(255, 107, 53, 0.3)",
+                flex: "1" // Allow flexible growth
+              }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  👥
+                </div>
+                <div>
+                  <h5 style={{
+                    fontWeight: "600",
+                    fontSize: "1.1rem",
+                    margin: "0 0 0.5rem 0"
+                  }}>
+                    4인실 프리미엄
+                  </h5>
+                  <p style={{
+                    fontSize: "0.9rem",
+                    opacity: 0.9,
+                    margin: 0
+                  }}>
+                    대형 회의테이블, 4K 모니터, 화상회의 시설
+                  </p>
+                </div>
+              </div>
+
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "1rem",
+                padding: "1.5rem",
+                background: "linear-gradient(135deg, #4CC9F0 0%, #7209B7 100%)",
+                borderRadius: "15px",
+                color: "white",
+                boxShadow: "0 8px 20px rgba(76, 201, 240, 0.3)",
+                flex: "1" // Allow flexible growth
+              }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  👫
+                </div>
+                <div>
+                  <h5 style={{
+                    fontWeight: "600",
+                    fontSize: "1.1rem",
+                    margin: "0 0 0.5rem 0"
+                  }}>
+                    2인실 스탠다드
+                  </h5>
+                  <p style={{
+                    fontSize: "0.9rem",
+                    opacity: 0.9,
+                    margin: 0
+                  }}>
+                    듀얼 모니터, 에르고노믹 의자, 개인 사물함
+                  </p>
+                </div>
+              </div>
+
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "1rem",
+                padding: "1.5rem",
+                background: "linear-gradient(135deg, #9D4EDD 0%, #6A0572 100%)",
+                borderRadius: "15px",
+                color: "white",
+                boxShadow: "0 8px 20px rgba(157, 78, 221, 0.3)",
+                flex: "1" // Allow flexible growth
+              }}>
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px"
+                }}>
+                  👤
+                </div>
+                <div>
+                  <h5 style={{
+                    fontWeight: "600",
+                    fontSize: "1.1rem",
+                    margin: "0 0 0.5rem 0"
+                  }}>
+                    1인실 프라이빗
+                  </h5>
+                  <p style={{
+                    fontSize: "0.9rem",
+                    opacity: 0.9,
+                    margin: 0
+                  }}>
+                    개인 데스크, 조명 조절, 집중형 환경
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* 예약 확인 팝업 - CommonPopup 비즈니스 로직 유지 */}
       <CommonPopup
-        show={isPopupOpen}
-        onHide={() => setIsPopupOpen(false)}
-        onConfirm={handleSave}
-        title="로그인 이력 등록"
+        show={showPopup}
+        onHide={handleCancel}
+        onConfirm={handleConfirm}
+        title="🏢 예약 확인"
       >
-        <div>
-          <div className="mb-3">
-            <label htmlFor="monthInput" className="form-label">월:</label>
-            <input
-              type="text"
-              id="monthInput"
-              className="form-control"
-              value={insertData.month}
-              onChange={(e) => setInsertData((prev) => ({ ...prev, month: e.target.value }))}
-              placeholder="예: 2025-06"
-            />
+        {selectedRoom && (
+          <div style={{ 
+            fontSize: "var(--bs-body-font-size, 1rem)",
+            lineHeight: 1.6
+          }}>
+            <div style={{ 
+              textAlign: "center", 
+              marginBottom: "1.5rem",
+              padding: "1rem",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              borderRadius: "12px",
+              color: "white"
+            }}>
+              <h4 style={{ 
+                margin: "0 0 0.5rem 0",
+                fontSize: "1.3rem",
+                fontWeight: "600"
+              }}>
+                {selectedRoom.label}
+              </h4>
+              <p style={{ margin: 0, opacity: 0.9 }}>
+                {selectedRoom.type} • {selectedRoom.capacity}명 • ₩{selectedRoom.price.toLocaleString()}
+              </p>
+            </div>
+
+            <div style={{ 
+              background: "#f8f9fa", 
+              padding: "1.5rem", 
+              borderRadius: "10px",
+              marginBottom: "1.5rem"
+            }}>
+              <h5 style={{ 
+                margin: "0 0 1rem 0",
+                color: "#2c3e50",
+                fontSize: "1rem",
+                fontWeight: "600"
+              }}>
+                📋 예약 정보 입력
+              </h5>
+              
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ 
+                  display: "block", 
+                  marginBottom: "0.5rem",
+                  fontWeight: "500",
+                  color: "#2c3e50"
+                }}>
+                  👤 이름
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={userInfo.name}
+                  onChange={handleInputChange}
+                  placeholder="이름을 입력하세요"
+                  style={{
+                    width: "100%",
+                    padding: "calc(0.5rem * var(--bs-scaling, 1))",
+                    borderRadius: "8px",
+                    border: "2px solid #e9ecef",
+                    fontSize: "var(--bs-body-font-size, 1rem)",
+                    transition: "border-color 0.3s ease",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "#667eea"}
+                  onBlur={(e) => e.target.style.borderColor = "#e9ecef"}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ 
+                  display: "block", 
+                  marginBottom: "0.5rem",
+                  fontWeight: "500",
+                  color: "#2c3e50"
+                }}>
+                  ⚥ 성별
+                </label>
+                <select
+                  name="gender"
+                  value={userInfo.gender}
+                  onChange={handleInputChange}
+                  style={{
+                    width: "100%",
+                    padding: "calc(0.5rem * var(--bs-scaling, 1))",
+                    borderRadius: "8px",
+                    border: "2px solid #e9ecef",
+                    fontSize: "var(--bs-body-font-size, 1rem)",
+                    transition: "border-color 0.3s ease",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "#667eea"}
+                  onBlur={(e) => e.target.style.borderColor = "#e9ecef"}
+                >
+                  <option value="">성별을 선택하세요</option>
+                  <option value="Male">남성</option>
+                  <option value="Female">여성</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ 
+                  display: "block", 
+                  marginBottom: "0.5rem",
+                  fontWeight: "500",
+                  color: "#2c3e50"
+                }}>
+                  📞 전화번호
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={userInfo.phone}
+                  onChange={handleInputChange}
+                  placeholder="010-0000-0000"
+                  style={{
+                    width: "100%",
+                    padding: "calc(0.5rem * var(--bs-scaling, 1))",
+                    borderRadius: "8px",
+                    border: "2px solid #e9ecef",
+                    fontSize: "var(--bs-body-font-size, 1rem)",
+                    transition: "border-color 0.3s ease",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "#667eea"}
+                  onBlur={(e) => e.target.style.borderColor = "#e9ecef"}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ 
+                  display: "block", 
+                  marginBottom: "0.5rem",
+                  fontWeight: "500",
+                  color: "#2c3e50"
+                }}>
+                  📅 예약 날짜
+                </label>
+                <DatePicker
+                  selected={userInfo.date}
+                  onChange={handleDateChange}
+                  dateFormat="yyyy-MM-dd"
+                  placeholderText="예약 날짜를 선택하세요"
+                  style={{
+                    width: "100%",
+                    padding: "calc(0.5rem * var(--bs-scaling, 1))",
+                    borderRadius: "8px",
+                    border: "2px solid #e9ecef",
+                    fontSize: "var(--bs-body-font-size, 1rem)",
+                    transition: "border-color 0.3s ease",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "#667eea"}
+                  onBlur={(e) => e.target.style.borderColor = "#e9ecef"}
+                  minDate={new Date()}
+                  className="custom-datepicker"
+                />
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ 
+                  display: "block", 
+                  marginBottom: "1rem",
+                  fontWeight: "500",
+                  color: "#2c3e50"
+                }}>
+                  ⏰ 예약 기간
+                </label>
+                <div style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: "1fr 1fr 1fr", 
+                  gap: "0.5rem" 
+                }}>
+                  {["1", "6", "12"].map((duration) => (
+                    <button
+                      key={duration}
+                      type="button"
+                      onClick={() => handleDurationClick(duration)}
+                      style={{
+                        padding: "calc(0.75rem * var(--bs-scaling, 1))",
+                        background: userInfo.duration === duration 
+                          ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+                          : "#f8f9fa",
+                        color: userInfo.duration === duration ? "white" : "#2c3e50",
+                        border: userInfo.duration === duration 
+                          ? "2px solid #667eea" 
+                          : "2px solid #e9ecef",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontSize: "var(--bs-body-font-size, 1rem)",
+                        fontWeight: "500",
+                        transition: "all 0.3s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (userInfo.duration !== duration) {
+                          e.target.style.background = "#e9ecef";
+                          e.target.style.borderColor = "#667eea";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (userInfo.duration !== duration) {
+                          e.target.style.background = "#f8f9fa";
+                          e.target.style.borderColor = "#e9ecef";
+                        }
+                      }}
+                    >
+                      {duration}개월
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ 
+              background: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)", 
+              padding: "1.5rem", 
+              borderRadius: "10px",
+              marginBottom: "1rem"
+            }}>
+              <h5 style={{ 
+                margin: "0 0 1rem 0",
+                color: "#2c3e50",
+                fontSize: "1rem",
+                fontWeight: "600"
+              }}>
+                ✨ 포함 시설 & 혜택
+              </h5>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.5rem"
+              }}>
+                {selectedRoom.amenities.map((amenity, index) => (
+                  <div key={index} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
+                  }}>
+                    <span style={{ color: "#27ae60", fontSize: "1rem" }}>✓</span>
+                    <span style={{ 
+                      fontSize: "0.9rem",
+                      color: "#2c3e50"
+                    }}>
+                      {amenity}
+                    </span>
+                  </div>
+                ))}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem"
+                }}>
+                  <span style={{ color: "#27ae60", fontSize: "1rem" }}>✓</span>
+                  <span style={{ 
+                    fontSize: "0.9rem",
+                    color: "#2c3e50"
+                  }}>
+                    무료 WiFi
+                  </span>
+                </div>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem"
+                }}>
+                  <span style={{ color: "#27ae60", fontSize: "1rem" }}>✓</span>
+                  <span style={{ 
+                    fontSize: "0.9rem",
+                    color: "#2c3e50"
+                  }}>
+                    카페 라운지 이용
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="mb-3">
-            <label htmlFor="dateInput" className="form-label">일자:</label>
-            <input
-              type="date"
-              id="dateInput"
-              className="form-control"
-              value={insertData.date}
-              onChange={(e) => setInsertData((prev) => ({ ...prev, date: e.target.value }))}
-            />
-          </div>
-          <div className="mb-3">
-            <label htmlFor="empNoInput" className="form-label">사원번호:</label>
-            <input
-              type="text"
-              id="empNoInput"
-              className="form-control"
-              value={insertData.empNo}
-              onChange={(e) => setInsertData((prev) => ({ ...prev, empNo: e.target.value }))}
-              placeholder="사원번호 입력"
-            />
-          </div>
-          <div className="mb-3">
-            <label htmlFor="userIpInput" className="form-label">사용자IP:</label>
-            <input
-              type="text"
-              id="userIpInput"
-              className="form-control"
-              value={insertData.userIp}
-              onChange={(e) => setInsertData((prev) => ({ ...prev, userIp: e.target.value }))}
-              placeholder="IP 입력"
-            />
-          </div>
-          <div className="mb-3">
-            <label htmlFor="loginStatusSelect" className="form-label">구분(Web/Mobile):</label>
-            <select
-              id="loginStatusSelect"
-              className="form-select"
-              value={insertData.loginStatus}
-              onChange={(e) => setInsertData((prev) => ({ ...prev, loginStatus: e.target.value }))}
-            >
-              <option value="W">Web</option>
-              <option value="M">Mobile</option>
-            </select>
-          </div>
-        </div>
+        )}
       </CommonPopup>
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .custom-datepicker {
+          width: 100%;
+          padding: calc(0.5rem * var(--bs-scaling, 1));
+          border-radius: 8px;
+          border: 2px solid #e9ecef;
+          font-size: var(--bs-body-font-size, 1rem);
+          transition: border-color 0.3s ease;
+        }
+        .custom-datepicker:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 5px rgba(102, 126, 234, 0.5);
+        }
+        label {
+          font-weight: 500;
+          margin-bottom: calc(0.25rem * var(--bs-scaling, 1));
+          display: block;
+          color: #2c3e50;
+        }
+      `}</style>
     </div>
   );
 };

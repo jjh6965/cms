@@ -130,7 +130,7 @@ useEffect(() => {
   console.log("hasPermission Result:", user ? hasPermission(user.auth, "usermngnew") : "No user");
   if (!user || !hasPermission(user.auth, "usermngnew")) {
     console.log("Redirecting due to missing user or usermngnew permission");
-    // window.location.href = "/"; // 임시로 주석 처리
+    window.location.href = "/"; // 임시로 주석 처리
     return;
   }
 }, [user]);
@@ -354,7 +354,7 @@ useEffect(() => {
     if (eventType === "search") handleSearch();
   };
 
-// [수정: API 경로를 oper/usermng에서 oper/usermng-new로 변경]
+// [수정: API 경로를 oper/usermng에서 oper/usermngnew로 변경]
 const handleSearch = async () => {
   setLoading(true);
   setIsSearched(true);
