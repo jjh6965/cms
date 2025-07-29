@@ -9,7 +9,6 @@ import { ErrorMsgPopupProvider } from './components/popup/context/ErrorMsgPopupC
 // Dynamically import all .jsx files in pages folder and subfolders
 const modules = import.meta.glob('/src/pages/**/*.jsx', { eager: false });
 
-// Generate routes from module paths
 const routes = Object.keys(modules).map((path) => {
   const pathMatch = path.match(/\/src\/pages\/(.*)\.jsx$/);
   if (!pathMatch) return null;
@@ -38,7 +37,7 @@ const routes = Object.keys(modules).map((path) => {
       const mobilePath = relativePath.split('/').slice(1).join('/');
       routePath = `/mobile/${mobilePath.charAt(0).toUpperCase() + mobilePath.slice(1)}`;
     } else {
-      routePath = `/${relativePath.toLowerCase()}`;
+      routePath = `/${relativePath.toLowerCase().replace(/monthlyloginhistory/, 'oper/loginHistory')}`; // 수정: 특정 파일 경로 조정
     }
   }
 
@@ -66,16 +65,17 @@ const App = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    const normalizedPath = location.pathname.toLowerCase();
-    if ((normalizedPath === '/' || normalizedPath === '') && user) {
-      navigate('/main', { replace: true });
-    } else if (normalizedPath === '/mobile/login' && user) {
-      navigate('/mobile/Main', { replace: true });
-    } else if (normalizedPath === '/login' && user) {
-      navigate('/main', { replace: true });
-    }
-  }, [user, navigate, location.pathname]);
+useEffect(() => {
+  const normalizedPath = location.pathname.toLowerCase();
+  if ((normalizedPath === '/' || normalizedPath === '') && user) {
+    navigate('/main', { replace: true });
+  } else if (normalizedPath === '/mobile/login' && user) {
+    navigate('/mobile/Main', { replace: true });
+  } else if (normalizedPath === '/login' && user) {
+    navigate('/main', { replace: true });
+  }
+  // 추가: /oper/loginHistory는 리디렉션 제외
+}, [user, navigate, location.pathname]);
 
   return (
     <ErrorMsgPopupProvider>
