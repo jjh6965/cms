@@ -1,0 +1,131 @@
+.MainInfoWrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-section {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px 0px;
+    background-color: #f8f8f8;
+}
+
+.info-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 250px;
+    height: 230px;
+    border: 1px solid #e0e0e0;
+    flex-direction: column; /* 자식 요소 세로로 정렬(h3, p) */
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 10px;
+    box-sizing: border-box;
+    border-radius: 5px;
+
+}
+
+.info-text-content {
+    text-align: center;
+    padding: 10px 0px;
+    flex-grow: 1;
+    flex-direction: column; 
+    justify-content: center;
+}
+
+.MainInfoSectionTitle {
+    margin-bottom: 5px;
+    font-size: 15px;
+    color: #333;
+    font-weight: bold;
+}
+.MainInfoSectionTitle p {
+    margin: 2px 0; /* 단락 위아래 여백 */
+    font-size: 0.9em; /* 폰트 크기 조정 */
+    color: #666;
+}
+
+.img-container {
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.img-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 5px;
+}
+
+.info-2-section {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px 0px;
+}
+
+.info-2-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 300px;
+    height: 200px;
+}
+
+.img-2-container {
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    border-radius: 5px;
+}
+
+.img-2-container::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0); /* 기본 투명 */
+  transition: background-color 0.3s ease;
+  z-index: 1;
+  border-radius: 5px;
+
+}
+
+.img-2-container:hover::after {
+      background-color: rgba(0, 0, 0, 0.25);
+     
+}
+
+.img-2-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+.overlay-text {
+    position: absolute;
+    bottom: 0.1px;
+    left: 0.01px;
+    font-size: 1.5rem;
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    z-index: 2;
+    font-weight: 400;
+    color: beige;
+}
+
+
