@@ -1,7 +1,7 @@
-import React from 'react';
 import MenuItem from './MenuItem';
 import useStore from '../../store/store';
 import styles from './MainLayout.module.css';
+
 
 const MainTopNav = () => {
   const { menu } = useStore();
@@ -11,11 +11,13 @@ const MainTopNav = () => {
   }
 
   return (
+    <nav className={styles.nav}>
     <ul className={styles.navList}>
       {menu.map((item) => (
         <MenuItem key={item.MENUID} item={item} />
       ))}
     </ul>
+    </nav>
   );
 };
 

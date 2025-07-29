@@ -25,6 +25,8 @@ export const performLogin = async (gubun, empNo, empPwd, navigate, setError) => 
 
         if (gubun === 'web') navigate('/main', { replace: true });
         else navigate('/mobile/main', { replace: true });
+
+        // alert("로그인 성공: gubun=" + gubun);
       }
     }
   } catch (error) {
