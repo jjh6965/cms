@@ -1,0 +1,105 @@
+.directionswrap {
+  padding: 30px;
+  background-color: #f9f9f9;
+  width: 924px;
+}
+
+/* 💡 flex 좌우 배치용 container */
+.directions-inner {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* 사이드탭 스타일은 Sidetab 컴포넌트에서 .SideWrapper로 설정되어 있을 것 */
+.SideWrapper1 {
+  width: 200px;
+  text-align: center;
+}
+
+/* 콘텐츠 영역 스타일은 Content 컴포넌트에서 .MainWrapper 등으로 설정 */
+.MainWrapper1 {
+  flex: 1;
+  display: flex;
+
+}
+
+.SideDirectionsTitle {
+    width: 180px;
+    height: 100px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    line-height: 100px;
+    background-color: white;
+    font-size: 25px;
+}
+
+.DirectionsSideTitle {
+  font-size: 20px;
+  font-weight: bold ;
+}
+
+.DirectionsCon {
+    width: 180px;
+    height: 50px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    line-height: 50px;
+    background-color: white;
+    font-size: 20px;
+    margin-top: 10px;
+}
+
+.Entire {
+    border: 1px solid #ccc;
+    padding: 30px;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.MainDirectionsTitle {
+    font-size: 30px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between; /* 첫 번째 아이템은 컨테이너의 시작 부분에 붙고, 마지막 아이템은 끝 부분에 붙는다. */
+    align-items: center;
+    width: 800px;
+}
+
+.btn-directions {
+  padding: 4px 8px; /* 버튼 크기 조정 */
+  background-color: #007bff; /* 예: 파란색 배경 */
+  color: white; /* 흰색 텍스트 */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-directions:hover {
+  background-color: #0056b3; /* 호버 시 색상 변화 */
+}
+
+.SubTitle {
+    font-size: 25px;
+    font-weight: bold;
+    color: peru;
+    margin-top: 15px;
+}
+
+.SubContent {
+    white-space: pre-line;
+    line-height: 1.6;
+    text-align: justify;
+    margin-bottom: 1.5rem;
+    margin-top: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+}
+
+
+
+
+

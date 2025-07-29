@@ -23,7 +23,7 @@ export async function fetchData(api, url, filters = {}, config = {}) {
  * @param {Object} [config={}] - 추가 설정 (현재 미사용, API 호환성을 위해 유지)
  * @returns {Promise<Array|Error>} 필터링된 데이터 배열 또는 오류 객체
  */
-export async function fetchJsonData(jsonData, filters = {}, config = {}) {
+export async function fetchJsonData(jsonData, filters = {}) {
   try {
     // Ensure jsonData is an array for consistent processing
     const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
@@ -58,16 +58,18 @@ export async function fetchJsonData(jsonData, filters = {}, config = {}) {
  * @param {Object} [config={}] - 추가 axios 설정 (예: headers)
  * @returns {Promise<any|Error>} 응답 데이터 (배열 또는 객체) 또는 오류 객체
  */
+// dataUtils.js
 export async function fetchDataGet(api, url, filters = {}, config = {}) {
-  try {
-    const queryParams = new URLSearchParams(filters).toString();
-    const fullUrl = queryParams ? `${url}?${queryParams}` : url;
-    const response = await api.get(fullUrl, config);
-    return response.data;
-  } catch (error) {
-    console.error('데이터 가져오기 실패 (GET):', error.message, error.response?.data);
-    throw error;
-  }
+    try {
+        const queryParams = new URLSearchParams(filters).toString();
+        const fullUrl = queryParams ? `${url}?${queryParams}` : url;
+        console.log("Generated URL:", fullUrl); // 디버깅 로그
+        const response = await api.get(fullUrl, config);
+        return response.data;
+    } catch (error) {
+        console.error('데이터 가져오기 실패 (GET):', error.message, error.response?.data);
+        throw error;
+    }
 }
 
 /**

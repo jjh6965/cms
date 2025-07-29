@@ -13,7 +13,6 @@ const Join = ({ show, onHide }) => {
   const [empNm, setEmpNm] = useState('');
   const [empPwd, setEmpPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
-  const [phone, setPhone] = useState('');
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
   const navigate = useNavigate();
@@ -24,7 +23,6 @@ const Join = ({ show, onHide }) => {
       setEmpNm('');
       setEmpPwd('');
       setConfirmPwd('');
-      setPhone('');
       setMobile('');
       setEmail('');
     }
@@ -41,9 +39,6 @@ const Join = ({ show, onHide }) => {
     const empNmValidation = commonUtils.validateVarcharLength(empNm, 50, '이름');
     if (!empNmValidation.valid) return empNmValidation.error;
 
-    const phoneValidation = commonUtils.validateVarcharLength(phone, 20, '전화번호');
-    if (!phoneValidation.valid) return phoneValidation.error;
-
     const mobileValidation = commonUtils.validateVarcharLength(mobile, 20, '핸드폰번호');
     if (!mobileValidation.valid) return mobileValidation.error;
 
@@ -58,17 +53,14 @@ const Join = ({ show, onHide }) => {
       return "비밀번호와 비밀번호 확인이 일치하지 않습니다.";
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\n@]+\.[^\n@]+$/;
     if (email && !emailRegex.test(email)) {
       return "유효한 이메일 형식이 아닙니다.";
     }
 
     const phoneRegex = /^(\d{2,3})-(\d{3,4})-(\d{3,4})$/;
-    if (phone && !phoneRegex.test(phone)) {
-      return "전화번호 형식이 올바르지 않습니다. (예: 02-1234-5678, 031-7777-7777)";
-    }
     if (mobile && !phoneRegex.test(mobile)) {
-      return "핸드폰번호 형식이 올바르지 않습니다. (예: 010-1234-5678, 010-7777-7777)";
+      return "핸드폰번호 형식이 올바르지 않습니다. (예: 010-1234-5678)";
     }
 
     return '';
@@ -84,11 +76,11 @@ const Join = ({ show, onHide }) => {
     }
 
     const userData = {
-      pGUBUN: 'I',
+      pGUBUN: 'I', // 프로시저의 INSERT 동작을 위해 추가
       pEMPNO: empNo,
       pEMPNM: empNm,
       pEMPPWD: empPwd,
-      pPHONE: phone || '',
+      pPHONE: mobile, // pMOBILE과 동일한 값 사용
       pMOBILE: mobile,
       pEMAIL: email
     };
@@ -126,33 +118,35 @@ const Join = ({ show, onHide }) => {
         <div className={`${styles.modalDialog} modal-dialog-centered`}>
           <div className={`${styles.modalContent} modal-content`}>
             <div className={`${styles.modalHeader} modal-header`}>
-              <h5 className={`${styles.modalTitle} modal-title`}>회원 가입</h5>
+              <h5 className={`${styles.modalTitle} modal-title`}>회원가입</h5>
               <button type="button" className={`${styles.btnClose} btn-close`} onClick={onHide}></button>
             </div>
             <div className={`${styles.modalBody} modal-body`}>
               <form onSubmit={handleRegistration}>
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
-                    <label htmlFor="empNo" className="form-label">
-                      <i className="bi bi-person me-2"></i>아이디 <i className="bi bi-asterisk text-danger"></i>
+                    <label htmlFor="empNo" className={styles.label}>
+                      아이디 <span className={styles.required}>*</span>
                     </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="empNo"
-                      value={empNo}
-                      onChange={(e) => setEmpNo(e.target.value)}
-                      required
-                      placeholder="아이디를 입력하세요"
-                    />
+                    <div className={styles.inputWithButton}>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        id="empNo"
+                        value={empNo}
+                        onChange={(e) => setEmpNo(e.target.value)}
+                        required
+                        placeholder="아이디를 입력하세요"
+                      />
+                    </div>
                   </div>
                   <div className={styles.formGroup}>
-                    <label htmlFor="empNm" className="form-label">
-                      <i className="bi bi-person-fill me-2"></i>이름 <i className="bi bi-asterisk text-danger"></i>
+                    <label htmlFor="empNm" className={styles.label}>
+                      이름 <span className={styles.required}>*</span>
                     </label>
                     <input
                       type="text"
-                      className="form-control"
+                      className={styles.input}
                       id="empNm"
                       value={empNm}
                       onChange={(e) => setEmpNm(e.target.value)}
@@ -161,12 +155,12 @@ const Join = ({ show, onHide }) => {
                     />
                   </div>
                   <div className={styles.formGroup}>
-                    <label htmlFor="empPwd" className="form-label">
-                      <i className="bi bi-lock me-2"></i>비밀번호 <i className="bi bi-asterisk text-danger"></i>
+                    <label htmlFor="empPwd" className={styles.label}>
+                      비밀번호 <span className={styles.required}>*</span>
                     </label>
                     <input
                       type="password"
-                      className="form-control"
+                      className={styles.input}
                       id="empPwd"
                       value={empPwd}
                       onChange={(e) => setEmpPwd(e.target.value)}
@@ -175,12 +169,12 @@ const Join = ({ show, onHide }) => {
                     />
                   </div>
                   <div className={styles.formGroup}>
-                    <label htmlFor="confirmPwd" className="form-label">
-                      <i className="bi bi-lock-fill me-2"></i>비밀번호 확인 <i className="bi bi-asterisk text-danger"></i>
+                    <label htmlFor="confirmPwd" className={styles.label}>
+                      비밀번호 확인 <span className={styles.required}>*</span>
                     </label>
                     <input
                       type="password"
-                      className="form-control"
+                      className={styles.input}
                       id="confirmPwd"
                       value={confirmPwd}
                       onChange={(e) => setConfirmPwd(e.target.value)}
@@ -189,39 +183,26 @@ const Join = ({ show, onHide }) => {
                     />
                   </div>
                   <div className={styles.formGroup}>
-                    <label htmlFor="phone" className="form-label">
-                      <i className="bi bi-telephone me-2"></i>전화번호
+                    <label htmlFor="mobile" className={styles.label}>
+                      핸드폰번호 <span className={styles.required}>*</span>
                     </label>
                     <input
                       type="tel"
-                      className="form-control"
-                      id="phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="(예: 02-1234-5678)"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="mobile" className="form-label">
-                      <i className="bi bi-phone me-2"></i>핸드폰번호 <i className="bi bi-asterisk text-danger"></i>
-                    </label>
-                    <input
-                      type="tel"
-                      className="form-control"
+                      className={styles.input}
                       id="mobile"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
                       required
-                      placeholder="(예: 010-1234-5678)"
+                      placeholder="핸드폰번호를 입력하세요"
                     />
                   </div>
                   <div className={styles.formGroup}>
-                    <label htmlFor="email" className="form-label">
-                      <i className="bi bi-envelope me-2"></i>이메일 <i className="bi bi-asterisk text-danger"></i>
+                    <label htmlFor="email" className={styles.label}>
+                      이메일 <span className={styles.required}>*</span>
                     </label>
                     <input
                       type="email"
-                      className="form-control"
+                      className={styles.input}
                       id="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -230,9 +211,14 @@ const Join = ({ show, onHide }) => {
                     />
                   </div>
                 </div>
-                <button type="submit" className={`${styles.btn} w-100 mt-3`}>
-                  <i className="bi bi-person-plus me-2"></i>가입
-                </button>
+                <div className={styles.buttonGroup}>
+                  <button type="submit" className={styles.btnSubmit}>
+                    가입하기
+                  </button>
+                  <button type="button" className={styles.btnCancel} onClick={onHide}>
+                    취소
+                  </button>
+                </div>
               </form>
             </div>
           </div>

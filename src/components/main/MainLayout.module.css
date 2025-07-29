@@ -2,7 +2,7 @@
 :root {
   --primary-color: #317271; /* 메인 색상 */
   --secondary-color: #c1cac5; /* 보조 색상 */
-  --header-nav-bg: #2cbbb7; /* 헤더 내비게이션 배경 */
+  --header-nav-bg: coral; /* 헤더 내비게이션 배경 */
   --text-color: #6b7770; /* 텍스트 색상 */
   --link-color: #ffffff; /* 링크 색상 */
   --white: #fff; /* 흰색 */
@@ -14,12 +14,12 @@
 /* 레이아웃 그룹 (MainLayout 관련) */
 .main {
   /* background: var(--white); */
-  border-bottom: 10px solid var(--secondary-color);
   padding: 0;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-height: calc(100vh - 249px);
 }
 
 .header {
@@ -27,19 +27,10 @@
 }
 
 .headerNav {
-  background: var(--header-nav-bg);
+  background: coral;
   color: #ccc;
 }
 
-.logo {
-  cursor: pointer; /* Keep the pointer cursor for clickable div */
-}
-
-.logoImage {
-  height: 40px; /* Adjust height as needed */
-  width: auto; /* Maintain aspect ratio */
-  display: block; /* Ensure proper alignment */
-}
 
 /* --------------------------------------------- */
 /* 내비게이션 그룹 (MainTopNav 및 MenuItem 관련) */
@@ -80,7 +71,7 @@
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
   outline: 0;
-  transition: background-color 0.075s var(--transition-easing), color 0.075s var(--transition-easing);
+  transition: background-color 0.3s var(--transition-easing), color 0.3s var(--transition-easing);
 }
 
 .nav li:hover,
@@ -95,8 +86,8 @@
 }
 
 .nav li.current a {
-  background: #37706f;
-  color: var(--white);
+  background: #ffffff;
+  color: tomato;
 }
 
 /* --------------------------------------------- */
@@ -115,10 +106,6 @@
   transition: background-color 0.075s var(--transition-easing);
 }
 
-.menuLink:hover {
-  background-color: #ddd;
-}
-
 .navLink {
   text-decoration: none;
   color: var(--text-color);
@@ -127,9 +114,9 @@
   transition: background-color 0.075s var(--transition-easing);
 }
 
-.navLink:hover {
+/* .navLink:hover {
   background-color: #7e9494;
-}
+} */
 
 .active,
 .current .navLink {
@@ -144,17 +131,16 @@
   left: 50%; /* Shift to the right */
   transform: translateX(-50%); /* Center relative to the menu item */
   text-transform: uppercase;
-  color: var(--white);
-  background: var(--text-color);
+  color: #030000;
+  background: #ffffff;
   box-shadow: 0 1em 2em 0 rgba(0, 0, 0, 0.1);
   min-width: 200px;
   list-style: none;
   padding: 0;
   margin: 0;
-  opacity: 0;
+  opacity: 1;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease; /* Added visibility transition */
-  transition-delay: 0.1s; /* Slight delay to prevent accidental hiding */
+  transition: opacity 0.3s ease, visibility 0.03s ease; 
   border-radius: 6px;
   z-index: 1000;
 }
@@ -175,17 +161,16 @@
 .subMenu li > a,
 .subMenu li > span {
   display: block;
-  color: var(--white);
+  color: tomato;
   text-decoration: none;
   padding: 8px 1.5em; /* Adjusted padding for better spacing */
   transition: background-color 0.075s var(--transition-easing);
 }
 
 .subMenu li:hover > a,
-.subMenu li:hover > span {
+/* .subMenu li:hover > span {
   color: var(--white);
-  background: #7b8780;
-}
+} */
 
 .headerNavGroup {
   width: 100%;
@@ -207,7 +192,7 @@
   color: #fff;
   padding: 0 2px;
   background: var(--header-nav-bg); /* #2cbbb7 from the image */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 15px;
 }
 
 .logo {
@@ -235,6 +220,7 @@
   align-items: center;
   gap: 0.5em;
   border-right: 1px solid rgba(255, 255, 255, 0.3); /* Lighter border for contrast */
+  
 }
 
 .headerMenu ul:last-child {
@@ -281,28 +267,34 @@
 /* --------------------------------------------- */
 /* 푸터 그룹 (MainFooter 관련) */
 .footer {
-  background: var(--text-color);
-  color: var(--white);
-  padding: 1.5em 0;
+  background-color: #f2f2f2;
+  padding: 30px 20px;
   text-align: center;
-  font-size: 0.9em;
+  font-size: 14px;
+  background-color: #f2f2f2;
+  line-height: 1.8;
 }
 
 .footerContent {
+  max-width: 900px;
   margin: 0 auto;
+  text-align: center;
+  display: block; /* 💡 flex 쓰지 말기 */
+}
+
+.footerContent p {
+  display: block;
+  margin: 4px 0;
+  padding: 0;
+  background: none;
 }
 
 .footerMenu {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
   justify-content: center;
   gap: 1.5em;
-}
-
-.footerMenu li {
-  margin: 0;
 }
 
 .footerLink {
@@ -320,7 +312,6 @@
   color: var(--primary-color);
   font-weight: 700;
 }
-
 /* --------------------------------------------- */
 /* 스크롤 링크 (공통) */
 .scrolly {
@@ -375,6 +366,7 @@
   .menuLink,
   .navLink {
     padding: 10px;
+    
   }
 
   /* Secondary and tertiary menus in mobile */
@@ -387,11 +379,13 @@
     left: 0;
     top: auto;
     transform: none;
+    
   }
 
   .subMenu li > a,
   .subMenu li > span {
     padding: 10px;
+    
   }
 
   /* 헤더 */
@@ -399,6 +393,7 @@
     flex-direction: column;
     padding: 1em;
     text-align: center;
+    
   }
 
   .logo {
@@ -410,15 +405,18 @@
   .headerMenu {
     flex-direction: column;
     gap: 0.5em;
+    
   }
 
   .headerMenu ul {
     flex-direction: column;
     gap: 0.3em;
+    
   }
 
   .headerMenu li {
     padding: 0.3em 0.8em;
+    
   }
 
   /* 푸터 */
@@ -430,4 +428,26 @@
     flex-direction: column;
     gap: 0.5em;
   }
+}
+
+/* MainTopBar css */
+.topBarContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: coral;
+  padding: 10px 20px;
+  height: 60px;
+  width: 100%;
+
+}
+
+.right {
+  flex: 0 0 auto;
+}
+
+.center {
+  flex: 1;
+  text-align: center;
+  margin-left: 30em;
 }
