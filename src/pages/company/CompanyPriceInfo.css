@@ -1,20 +1,9 @@
-.priceinfowrap {
-  padding: 30px;
-  background-color: #f9f9f9;
-}
-
 /* 💡 flex 좌우 배치용 container */
 .priceinfo-inner {
   display: flex;
   flex-direction: row;
   gap: 20px;
-  margin-top: 20px;
-}
-
-/* 사이드탭 스타일은 Sidetab 컴포넌트에서 .SideWrapper로 설정되어 있을 것 */
-.SideWrapper {
-  width: 200px;
-  text-align: center;
+  width: 100%;
 }
 
 /* 콘텐츠 영역 스타일은 Content 컴포넌트에서 .MainWrapper 등으로 설정 */
@@ -86,6 +75,21 @@
     font-size: 30px;
     font-weight: bold;
     margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.btn-reservation {
+    padding: 4px 8px; /* 버튼 크기 조정 */
+  background-color: #007bff; /* 예: 파란색 배경 */
+  color: white; /* 흰색 텍스트 */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-reservation:hover {
+  background-color: #0056b3; /* 호버 시 색상 변화 */
 }
 
 .MainContent {
@@ -124,4 +128,28 @@
   border: 1px solid #ccc;
   font-size: 12px;
   padding: 10px 10px;
+}
+
+.side-sticky-priceinfo {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    height: 300px;
+    width: 200px;
+    margin-left: 10px;
+    position: sticky;
+    top: 10px;
+    padding: 10px;
+    background-color: white;
+    border-radius: 5px;
+}
+
+.side-menu-priceinfo {
+      height: 50px;
+    text-align: center;
+    line-height: 50px;
+    font-size: 17px;
+    font-weight: bold;
+}
+
+.side-menu-priceinfo:first-child {
+  margin-top: 10px;
 }

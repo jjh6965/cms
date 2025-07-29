@@ -1,10 +1,16 @@
 import NaverMaps from "../company/NaverMap";
 
 const CompanyDirectionsContent = () => {
+    const handleNaverMapClick = () => {
+    const destination = encodeURIComponent("경기도 수원시 장안구 정조로 940-1 영화동 연세IT미래교육원 빌딩");
+    const naverMapUrl = `https://map.naver.com/v5/directions/-/,-,${destination},CAR,,?entry=entry`;
+    window.open(naverMapUrl, "_blank");
+  };
     return (
         <div className="MainWrapper1">
             <div className="Entire">
-                <div className="MainDirectionsTitle">오시는 길</div>
+                <div className="MainDirectionsTitle">오시는 길<button className="btn-directions" onClick={handleNaverMapClick}>길 찾기</button></div>
+                
                 <NaverMaps />
                 <div className="SubTitle">주소</div>
                 <div className="SubContent">경기도 수원시 장안구 정조로 940-1(영화동, 연세IT미래교육원 빌딩)</div>

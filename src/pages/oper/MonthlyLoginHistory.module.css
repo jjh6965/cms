@@ -1,0 +1,133 @@
+/* MonthlyLoginHistory.module.css */
+
+/* 전체 페이지 컨테이너 */
+.container {
+    padding: 20px; /* 내부 여백 */
+    background-color: #f0f2f5; /* 연한 회색 배경 */
+    min-height: calc(100vh - 100px); /* 뷰포트 높이에서 헤더/푸터 제외한 최소 높이 */
+    display: flex;
+    flex-direction: column; /* 자식 요소들을 세로 방향으로 정렬 */
+    gap: 20px; /* 각 주요 섹션 (검색 영역, 툴바, 테이블) 사이의 간격 */
+}
+
+/* 상단 검색 및 버튼 영역 (draw.io UI의 기간 입력, 조회 버튼 부분) */
+.topSearchArea {
+    display: flex;
+    align-items: center; /* 세로 중앙 정렬 */
+    justify-content: space-between; /* 기간 그룹과 조회 버튼을 양 끝으로 정렬 */
+    padding: 15px; /* 내부 여백 */
+    background-color: #fff; /* 흰색 배경 */
+    border: 1px solid #e0e0e0; /* 연한 테두리 */
+    border-radius: 5px; /* 둥근 모서리 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 부드러운 그림자 효과 */
+}
+
+/* 기간 입력 필드들을 그룹화하는 컨테이너 */
+.dateFilterGroup {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 날짜 입력 필드와 구분자 사이의 간격 */
+}
+
+.dateLabel {
+    font-weight: bold; /* 굵은 글씨 */
+    color: #333; /* 어두운 글씨 색상 */
+    margin-right: 5px; /* 레이블과 입력 필드 사이 간격 */
+    white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+}
+
+.dateInput {
+    padding: 8px 10px; /* 내부 여백 */
+    border: 1px solid #ccc; /* 테두리 */
+    border-radius: 4px; /* 둥근 모서리 */
+    font-size: 0.9rem; /* 글씨 크기 */
+    width: 150px; /* 적절한 너비 */
+    box-sizing: border-box; /* 패딩과 테두리가 너비에 포함되도록 */
+}
+
+.dateSeparator {
+    font-size: 1.2rem; /* 물결표 크기 */
+    color: #555; /* 중간 톤 글씨 색상 */
+}
+
+/* 조회 버튼 스타일 */
+.searchButton {
+    padding: 10px 25px; /* 내부 여백 */
+    background-color: #007bff; /* 파란색 (draw.io 버튼 색상 참고) */
+    color: white; /* 흰색 글씨 */
+    border: none; /* 테두리 없음 */
+    border-radius: 5px; /* 둥근 모서리 */
+    cursor: pointer; /* 마우스 오버 시 포인터 변경 */
+    font-size: 1rem; /* 글씨 크기 */
+    font-weight: bold; /* 굵은 글씨 */
+    transition: background-color 0.2s ease; /* 배경색 변경 시 부드러운 전환 */
+    min-width: 100px; /* 최소 너비 */
+}
+
+.searchButton:hover {
+    background-color: #0056b3; /* 호버 시 약간 어두운 파란색 */
+}
+
+/* 테이블 위에 위치하는 툴바 (Total count, 엑셀 다운로드 버튼) */
+.tableToolbar {
+    display: flex;
+    justify-content: space-between; /* Total과 버튼을 양 끝으로 정렬 */
+    align-items: center; /* 세로 중앙 정렬 */
+    padding: 10px 0; /* 상하 여백 */
+    margin-bottom: 5px; /* 테이블과의 간격 */
+}
+
+.totalCount {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.downloadExcelButton {
+    padding: 8px 15px;
+    background-color: #4CAF50; /* 초록색 */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.downloadExcelButton:hover {
+    background-color: #45a049;
+}
+
+/* Tabulator 테이블 전체를 감싸는 컨테이너 */
+.tableWrapper {
+    flex-grow: 1; /* 부모 컨테이너 (.container)의 남은 세로 공간을 채우도록 */
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    overflow: hidden; /* 내용이 넘칠 경우 숨김 (스크롤바는 Tabulator가 내부적으로 생성) */
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex; /* 내부 메시지 정렬을 위해 flex 컨테이너로 설정 */
+    flex-direction: column;
+}
+
+/* Tabulator 테이블이 렌더링될 실제 div */
+.tableSection {
+    min-height: 200px; /* 테이블 최소 높이 (데이터가 없을 때도 영역 유지) */
+    flex-grow: 1; /* 남은 공간을 채우도록 */
+}
+
+/* 로딩, 에러 메시지 스타일 */
+.message {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.errorMessage {
+    text-align: center;
+    padding: 20px;
+    color: #d9534f; /* 빨간색 계열 */
+    font-weight: bold;
+    font-size: 1.1rem;
+}

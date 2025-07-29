@@ -1,1254 +1,894 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import useStore from "../../store/store";
 import { hasPermission } from "../../utils/authUtils";
+import MainSearch from "../../components/main/MainSearch";
+import TableSearch from "../../components/table/TableSearch";
+import { createTable } from "../../utils/tableConfig";
+import { initialFilters } from "../../utils/tableEvent";
+import { handleDownloadExcel } from "../../utils/tableExcel";
+import styles from "../../components/table/TableSearch.module.css";
+import CommonPopup from "../../components/popup/CommonPopup";
+import { fetchData } from "../../utils/dataUtils";
 import api from "../../utils/api";
 import common from "../../utils/common";
+import { errorMsgPopup } from "../../utils/errorMsgPopup";
+import { msgPopup } from "../../utils/msgPopup";
 
-// 상태 매핑 상수 정의
-const STATUS_MAP = {
-  사용중: "IN_USE",
-  예약가능: "AVAILABLE",
-  취소: "CANCELLED",
+// 검색 필드 옵션 정의
+const getFieldOptions = (fieldId) => {
+  const optionsMap = {
+    STATUS: [
+      { value: "", label: "전체" },
+      { value: "사용 중", label: "사용 중" },
+      { value: "예약 가능", label: "예약 가능" },
+      { value: "예약 완료", label: "예약 완료" },
+    ],
+    GENDER: [
+      { value: "Male", label: "남성" },
+      { value: "Female", label: "여성" },
+    ],
+    DURATION: [
+      { value: 1, label: "1개월" },
+      { value: 6, label: "6개월" },
+      { value: 12, label: "12개월" },
+    ],
+    ROOM_TYPE: [
+      { value: "1인실", label: "1인실" }, // CSV 기반 초기값, 동적 로드 필요
+    ],
+  };
+  return optionsMap[fieldId] || [];
 };
 
-const APPROVAL_STATUS_MAP = {
-  승인대기: "PENDING",
-  승인완료: "APPROVED",
-  반려: "REJECTED",
+// 동적 옵션 로드 함수
+const fetchFieldOptions = async (fieldId, endpoint, user) => {
+  try {
+    const params = {
+      p_NAME: "",
+      p_STATUS: "",
+      p_FLOOR_ID: "",
+      p_SECTION: "",
+      p_DEBUG: "F",
+    };
+    console.log("Params before fetchData in fetchFieldOptions:", params);
+    const response = await fetchData(api, endpoint, params);
+    console.log("Response from fetchData in fetchFieldOptions:", response);
+    if (!response.success || response.errCd !== "00") {
+      throw new Error(response.errMsg || `Failed to load ${fieldId} options`);
+    }
+    return Array.isArray(response.data)
+      ? response.data.map((item) => ({ value: item[fieldId] || item, label: item[fieldId] || item }))
+      : [];
+  } catch (err) {
+    console.error(`Failed to load ${fieldId} options:`, err);
+    errorMsgPopup(`Failed to load ${fieldId} options: ${err.message}`);
+    return [];
+  }
 };
 
-const EXTENSION_STATUS_MAP = {
-  승인대기: "PENDING",
-  승인완료: "APPROVED",
-  반려: "REJECTED",
-  없음: "NONE",
+// 검색 설정
+const searchConfig = {
+  areas: [
+    {
+      type: "search",
+      fields: [
+        {
+          id: "NAME",
+          type: "text",
+          row: 1,
+          label: "예약자 이름",
+          labelVisible: true,
+          placeholder: "예약자 이름 입력",
+          width: "200px",
+          height: "30px",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          enabled: true,
+        },
+        {
+          id: "STATUS",
+          type: "select",
+          row: 1,
+          label: "상태",
+          labelVisible: true,
+          options: [
+            { value: "", label: "전체" },
+            { value: "사용 중", label: "사용 중" },
+            { value: "예약 가능", label: "예약 가능" },
+            { value: "취소", label: "취소" },
+          ],
+          width: "150px",
+          height: "30px",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          enabled: true,
+        },
+        {
+          id: "FLOOR_ID",
+          type: "text",
+          row: 2,
+          label: "층 ID",
+          labelVisible: true,
+          placeholder: "층 ID 입력 (예: 1F)",
+          width: "150px",
+          height: "30px",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          enabled: true,
+        },
+        {
+          id: "SECTION",
+          type: "select",
+          row: 2,
+          label: "섹션",
+          labelVisible: true,
+          options: [
+            { value: "", label: "전체" },
+            { value: "A", label: "A" },
+            { value: "B", label: "B" },
+            { value: "C", label: "C" },
+          ],
+          width: "150px",
+          height: "30px",
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          enabled: true,
+        },
+      ],
+    },
+    {
+      type: "buttons",
+      fields: [
+        {
+          id: "searchBtn",
+          type: "button",
+          row: 1,
+          label: "검색",
+          eventType: "search",
+          width: "80px",
+          height: "30px",
+          backgroundColor: "#00c4b4",
+          color: "#ffffff",
+          enabled: true,
+        },
+      ],
+    },
+  ],
 };
 
-const ROOM_TYPE_MAP = {
-  "1인실": "SINGLE",
-  "2인실": "DOUBLE",
-  "4인실": "QUAD",
-  "8인실": "OCTAD",
-};
-
-// FLOOR_ID 검증 함수 (XF 또는 XXF 형식만 허용, 최대 5자)
-const validateFloorId = (floorId) => {
-  if (!floorId || floorId === "") return true; // 빈 값 허용
-  return /^([1-9]|[1-2][0-9])F$/.test(floorId) && floorId.length <= 5;
-};
-
-// ROOM_ID에서 FLOOR_ID 추출 함수
-const extractFloorIdFromRoomId = (roomId) => {
-  if (!roomId) return "";
-  const match = roomId.match(/^(\d+F)/);
-  return match ? match[1] : "";
-};
+// 테이블 필터 필드 설정
+const filterTableFields = [
+  {
+    id: "filterSelect",
+    label: "",
+    type: "select",
+    options: [
+      { value: "", label: "선택" },
+      { value: "RESERVATION_ID", label: "예약 ID" },
+      { value: "ROOM_ID", label: "호실 ID" },
+      { value: "USER_ID", label: "사용자 ID" },
+      { value: "ROOM_TYPE", label: "호실 유형" },
+      { value: "NAME", label: "예약자 이름" },
+      { value: "GENDER", label: "성별" },
+      { value: "PHONE", label: "전화번호" },
+      { value: "RESERVATION_DATE", label: "예약 날짜" },
+      { value: "DURATION", label: "기간(개월)" },
+      { value: "STATUS", label: "상태" },
+      { value: "EMP_NO", label: "직원 번호" },
+    ],
+    width: "auto",
+  },
+  {
+    id: "filterText",
+    label: "",
+    type: "text",
+    placeholder: "검색값을 입력하세요",
+    width: "200px",
+  },
+];
 
 const ReservationManage = () => {
   const { user } = useStore();
   const navigate = useNavigate();
-  const [searchName, setSearchName] = useState("");
-  const [reservations, setReservations] = useState([]);
+  const tableRef = useRef(null);
+  const tableInstance = useRef(null);
+  const isInitialRender = useRef(true);
+
+  const [filters, setFilters] = useState(initialFilters(searchConfig.areas.find((area) => area.type === "search").fields));
+  const [tableFilters, setTableFilters] = useState(initialFilters(filterTableFields));
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [floors, setFloors] = useState([]);
-  const [sections, setSections] = useState(["A", "B", "C"]);
-  const [filters, setFilters] = useState({
-    floorId: "",
-    section: "",
-    roomType: "",
-    status: "",
-    extensionStatus: "",
-    approvalStatus: "",
+  const [tableStatus, setTableStatus] = useState("initializing");
+  const [showAddPopup, setShowAddPopup] = useState(false);
+  const [newRowData, setNewRowData] = useState({
+    RESERVATION_ID: "",
+    ROOM_ID: "",
+    USER_ID: user?.id || "admin",
+    ROOM_TYPE: "1인실",
+    NAME: "",
+    GENDER: "Male",
+    PHONE: "",
+    RESERVATION_DATE: new Date().toISOString().split("T")[0],
+    DURATION: 1,
+    STATUS: "",
+    EMP_NO: user?.emp_no || "admin",
   });
-  const [openEditDialog, setOpenEditDialog] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState(null);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    gender: "",
-    phone: "",
-    reservationDate: "",
-    duration: "",
-    note: "",
+  const [rowCount, setRowCount] = useState(0);
+  const [isSearched, setIsSearched] = useState(false);
+  const [roomTypeOptions, setRoomTypeOptions] = useState(getFieldOptions("ROOM_TYPE"));
+
+  // 테이블 셀 편집기 설정
+  const fn_CellText = { editor: "input", editable: true };
+  const fn_CellNumber = { editor: "number", editorParams: { min: 0 }, editable: true };
+  const fn_CellSelect = (values) => ({ editor: "list", editorParams: { values, autocomplete: true }, editable: true });
+  const fn_CellButton = (label, className, onClick) => ({
+    formatter: (cell) => {
+      const button = document.createElement("button");
+      button.className = `btn btn-sm ${className}`;
+      button.innerText = label;
+      button.onclick = () => onClick(cell.getData());
+      return button;
+    },
   });
-  const [error, setError] = useState(null);
 
-  // 실시간 시간 업데이트
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // 셀 편집 처리 함수
+  const fn_HandleCellEdit = (cell, field) => {
+    const rowId = cell.getRow().getData().RESERVATION_ID;
+    const newValue = cell.getValue();
+    setTimeout(() => {
+      setData((prevData) =>
+        prevData.map((row) => {
+          if (String(row.RESERVATION_ID) === String(rowId)) {
+            const updatedRow = { ...row, [field]: newValue };
+            if (updatedRow.is_deleted === "N" && updatedRow.is_added === "N") {
+              updatedRow.is_changed = "Y";
+            }
+            return updatedRow;
+          }
+          return row;
+        })
+      );
+      if (tableInstance.current) tableInstance.current.redraw();
+    }, 0);
+  };
 
-  // 권한 확인
+  // 호실 삭제 처리 함수
+  const handleDelete = (rowData) => {
+    if (!rowData || !rowData.RESERVATION_ID) {
+      errorMsgPopup("삭제할 데이터가 없습니다.");
+      return;
+    }
+    if (rowData.STATUS === "사용 중") {
+      errorMsgPopup("사용 중인 예약은 삭제할 수 없습니다.");
+      return;
+    }
+    const table = tableInstance.current;
+    if (table) {
+      const row = table.getRows().find((r) => r.getData().RESERVATION_ID === rowData.RESERVATION_ID);
+      if (row) {
+        row.select();
+      }
+    }
+    setTimeout(() => {
+      if (rowData.is_added === "Y") {
+        setData((prevData) => prevData.filter((r) => r.RESERVATION_ID !== rowData.RESERVATION_ID));
+      } else {
+        setData((prevData) =>
+          prevData.map((r) => (r.RESERVATION_ID === rowData.RESERVATION_ID ? { ...r, is_deleted: "Y", is_changed: "N" } : r))
+        );
+      }
+      if (tableInstance.current) tableInstance.current.redraw();
+    }, 0);
+  };
+
+  // 권한 체크
   useEffect(() => {
-    if (!user || !hasPermission(user.auth, "reservationManage")) navigate("/");
+    if (!user || !hasPermission(user.auth, "reservationManage")) {
+      console.log("Redirecting due to missing user or reservationManage permission");
+      navigate("/");
+    }
   }, [user, navigate]);
 
-  // 층 및 섹션 목록 로드
+  // 동적 옵션 로드
   useEffect(() => {
-    const fetchFloorsAndSections = async () => {
+    const loadOptions = async () => {
+      setLoading(true);
       try {
-        const response = await api.post(common.getServerUrl("reservation/reservation/list"), {
-          P_FLOOR_ID: "",
-          P_SECTION: "",
-          P_DEBUG: "F",
-        });
-        if (response.data?.success) {
-          const floorList = [
-            ...new Set(
-              response.data.data.map((item) => {
-                const floorId = item.FLOOR_ID || extractFloorIdFromRoomId(item.ROOM_ID || item.p_ROOM_ID);
-                if (!validateFloorId(floorId)) {
-                  console.warn(`잘못된 FLOOR_ID 형식: ${floorId}. 무시됨.`);
-                  return null;
-                }
-                return floorId;
-              })
-            ),
-          ]
-            .filter((floor) => floor)
-            .sort((a, b) => parseInt(a.replace("F", "")) - parseInt(b.replace("F", "")));
-          setFloors(floorList);
-          const dynamicSections = [...new Set(response.data.data.map((item) => item.SECTION))].filter(Boolean).sort();
-          const uniqueSections = ["A", "B", "C", ...dynamicSections].filter((item, index, self) => self.indexOf(item) === index);
-          setSections(uniqueSections);
-        } else {
-          throw new Error(response.data?.errMsg || "층/섹션 데이터가 없습니다.");
-        }
-      } catch (error) {
-        console.error("층/섹션 목록 로드 실패:", error);
-        setError("층/섹션 데이터를 가져오는 중 오류가 발생했습니다.");
+        const roomTypes = await fetchFieldOptions("ROOM_TYPE", `${common.getServerUrl("reservation/reservation/list")}`, user);
+        setRoomTypeOptions(roomTypes.length > 0 ? roomTypes : getFieldOptions("ROOM_TYPE"));
+      } catch (err) {
+        console.error("Failed to load room types:", err);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchFloorsAndSections();
+    loadOptions();
+  }, [user]);
+
+  // 테이블 초기화
+  useEffect(() => {
+    const initializeTable = async () => {
+      if (!tableRef.current) {
+        errorMsgPopup("테이블 컨테이너를 초기화할 수 없습니다.");
+        return;
+      }
+      try {
+        tableInstance.current = createTable(
+          tableRef.current,
+          [
+            {
+              frozen: true,
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "작업",
+              field: "actions",
+              width: 80,
+              visible: true,
+              ...fn_CellButton("삭제", `btn-danger ${styles.deleteButton}`, handleDelete),
+            },
+            {
+              frozen: true,
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "작업대상",
+              field: "applyTarget",
+              sorter: "string",
+              width: 100,
+              formatter: (cell) => {
+                const rowData = cell.getRow().getData();
+                let label = "";
+                let stateField = "";
+                if (rowData.is_deleted === "Y") {
+                  label = "삭제";
+                  stateField = "is_deleted";
+                } else if (rowData.is_added === "Y") {
+                  label = "추가";
+                  stateField = "is_added";
+                } else if (rowData.is_changed === "Y") {
+                  label = "변경";
+                  stateField = "is_changed";
+                }
+                if (!label) return "";
+                const div = document.createElement("div");
+                div.style.display = "flex";
+                div.style.alignItems = "center";
+                div.style.justifyContent = "center";
+                div.style.gap = "5px";
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.checked = rowData[stateField] === "Y";
+                checkbox.onclick = () => {
+                  setTimeout(() => {
+                    setData((prevData) =>
+                      prevData
+                        .map((row) => {
+                          if (row.RESERVATION_ID === rowData.RESERVATION_ID) {
+                            const updatedRow = { ...row, [stateField]: checkbox.checked ? "Y" : "N" };
+                            if (stateField === "is_deleted" && !checkbox.checked) updatedRow.is_changed = "N";
+                            if (stateField === "is_added" && !checkbox.checked) return null;
+                            return updatedRow;
+                          }
+                          return row;
+                        })
+                        .filter(Boolean)
+                    );
+                    if (tableInstance.current) tableInstance.current.redraw();
+                  }, 0);
+                };
+                const span = document.createElement("span");
+                span.innerText = label;
+                div.appendChild(checkbox);
+                div.appendChild(span);
+                return div;
+              },
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "예약 ID",
+              field: "RESERVATION_ID",
+              sorter: "string",
+              width: 120,
+              editable: false,
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "left",
+              title: "호실 ID",
+              field: "ROOM_ID",
+              sorter: "string",
+              width: 100,
+              editor: "input",
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "ROOM_ID"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "left",
+              title: "호실 유형",
+              field: "ROOM_TYPE",
+              sorter: "string",
+              width: 100,
+              editor: "list",
+              editorParams: { values: roomTypeOptions.map((opt) => opt.value) },
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "ROOM_TYPE"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "left",
+              title: "예약자 이름",
+              field: "NAME",
+              sorter: "string",
+              width: 120,
+              editor: "input",
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "NAME"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "성별",
+              field: "GENDER",
+              sorter: "string",
+              width: 80,
+              editor: "list",
+              editorParams: { values: getFieldOptions("GENDER").map((opt) => opt.value) },
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "GENDER"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "left",
+              title: "전화번호",
+              field: "PHONE",
+              sorter: "string",
+              width: 120,
+              editor: "input",
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "PHONE"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "예약 날짜",
+              field: "RESERVATION_DATE",
+              sorter: "string",
+              width: 120,
+              editor: "input",
+              editorParams: { type: "date" },
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "RESERVATION_DATE"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "기간(개월)",
+              field: "DURATION",
+              sorter: "number",
+              width: 100,
+              editor: "list",
+              editorParams: { values: getFieldOptions("DURATION").map((opt) => opt.value) },
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "DURATION"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "상태",
+              field: "STATUS",
+              sorter: "string",
+              width: 100,
+              editor: "list",
+              editorParams: { values: getFieldOptions("STATUS").map((opt) => opt.value) },
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "STATUS"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "직원 번호",
+              field: "EMP_NO",
+              sorter: "string",
+              width: 100,
+              editor: "input",
+              editable: true,
+              cellEdited: (cell) => fn_HandleCellEdit(cell, "EMP_NO"),
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "생성일시",
+              field: "CREATED_AT",
+              sorter: "string",
+              width: 150,
+              editable: false,
+            },
+            {
+              headerHozAlign: "center",
+              hozAlign: "center",
+              title: "수정일시",
+              field: "UPDATED_AT",
+              sorter: "string",
+              width: 150,
+              editable: false,
+            },
+          ],
+          [],
+          {
+            editable: true,
+            rowFormatter: (row) => {
+              const data = row.getData();
+              const el = row.getElement();
+              el.classList.remove(styles.deletedRow, styles.addedRow, styles.editedRow);
+              if (data.is_deleted === "Y") el.classList.add(styles.deletedRow);
+              else if (data.is_added === "Y") el.classList.add(styles.addedRow);
+              else if (data.is_changed === "Y") el.classList.add(styles.editedRow);
+            },
+          }
+        );
+        setTableStatus("ready");
+      } catch (err) {
+        setTableStatus("error");
+        errorMsgPopup("테이블 초기화에 실패했습니다: " + err.message);
+      }
+    };
+    initializeTable();
+    return () => {
+      if (tableInstance.current) {
+        tableInstance.current.destroy();
+        tableInstance.current = null;
+        setTableStatus("initializing");
+      }
+    };
   }, []);
 
-  // 예약 목록 조회
-  // 예약 목록 조회
-  const fetchReservations = useCallback(async () => {
+  // 데이터 로드
+  const handleSearch = async () => {
     setLoading(true);
-    setError(null);
+    setIsSearched(true);
     try {
-      let floorId = filters.floorId || "";
-      // FLOOR_ID 강제 검증 및 5자 제한
-      if (floorId) {
-        // 유효성 검사
-        if (!validateFloorId(floorId)) {
-          console.warn(`유효하지 않은 FLOOR_ID: ${floorId}. 빈 값으로 대체합니다.`);
-          floorId = ""; // 유효하지 않으면 빈 문자열로 설정
-        } else if (floorId.length > 5) {
-          floorId = floorId.slice(0, 5); // 5자 초과 시 잘라냄
-          setFilters((prev) => ({ ...prev, floorId }));
-          setError("층 ID가 너무 길어 5자리로 조정되었습니다. (예: 1F, 10F)");
-        }
-      }
-      console.log("최종 P_FLOOR_ID 값:", floorId); // 디버깅 로그 추가
-
-      const filterParams = {
-        P_NAME: searchName || "",
-        P_FLOOR_ID: floorId, // 검증된 값 사용
-        P_SECTION: filters.section || "",
-        P_ROOM_TYPE: filters.roomType ? ROOM_TYPE_MAP[filters.roomType] : "",
-        P_STATUS: filters.status ? STATUS_MAP[filters.status] : "",
-        P_EXTENSION_STATUS: filters.extensionStatus ? EXTENSION_STATUS_MAP[filters.extensionStatus] : "",
-        P_APPROVAL_STATUS: filters.approvalStatus ? APPROVAL_STATUS_MAP[filters.approvalStatus] : "",
-      };
-      console.log("API 호출 파라미터:", filterParams);
-
       const params = {
-        pEMPNO: user?.empNo || "ADMIN",
-        pIP: "127.0.0.1",
-        pRPTCD: "RESERVATIONSELECT",
-        pJOBGB: "SELECT",
-        pPARAM: JSON.stringify(filterParams),
-        pUSERCONGB: "N",
-        pUSERAGENT: navigator.userAgent || "Unknown",
+        p_NAME: filters.NAME || "",
+        p_STATUS: filters.STATUS || "",
+        p_FLOOR_ID: filters.FLOOR_ID || "",
+        p_SECTION: filters.SECTION || "",
+        p_DEBUG: "F",
       };
-
-      const response = await api.post(common.getServerUrl("reservation/reservation/list"), params);
-      console.log("API 응답:", response.data);
-
-      if (response.data?.success && Array.isArray(response.data.data)) {
-        const mappedReservations = response.data.data.map((item) => ({
-          id: item.RESERVATION_ID || "",
-          roomId: item.ROOM_ID || "",
-          floorId: item.FLOOR_ID || extractFloorIdFromRoomId(item.ROOM_ID) || "",
-          roomType: Object.keys(ROOM_TYPE_MAP).find((key) => ROOM_TYPE_MAP[key] === item.ROOM_TYPE) || item.ROOM_TYPE || "1인실",
-          name: item.NAME || "",
-          gender: item.GENDER === "M" ? "남성" : item.GENDER === "F" ? "여성" : item.GENDER || "",
-          phone: item.PHONE || "",
-          reservationDate: item.START_DATE || "",
-          expiryDate: item.END_DATE || "",
-          amount: item.PRICE || 0,
-          status: Object.keys(STATUS_MAP).find((key) => STATUS_MAP[key] === item.STATUS) || item.STATUS || "예약가능",
-          extensionStatus:
-            Object.keys(EXTENSION_STATUS_MAP).find((key) => EXTENSION_STATUS_MAP[key] === item.EXTENSION_STATUS) ||
-            item.EXTENSION_STATUS ||
-            "없음",
-          approvalStatus:
-            Object.keys(APPROVAL_STATUS_MAP).find((key) => APPROVAL_STATUS_MAP[key] === item.APPROVAL_STATUS) ||
-            item.APPROVAL_STATUS ||
-            "승인대기",
-          note: item.NOTE || "",
-          section: item.SECTION || "",
-          userId: item.USER_ID || "",
-          empId: item.EMP_ID || "",
-          createdAt: item.CREATED_AT || "",
-          updatedAt: item.UPDATED_AT || "",
-          extensionRequestDate: item.EXTENSION_REQUEST_DATE || "",
-        }));
-        setReservations(mappedReservations);
-        console.log("매핑된 예약 데이터:", mappedReservations);
-      } else {
-        setReservations([]);
-        setError(response.data?.errMsg || "예약 데이터가 없습니다.");
+      console.log("Search params:", params);
+      const response = await fetchData(api, `${common.getServerUrl("reservation/reservation/list")}`, params);
+      console.log("Search response:", response);
+      if (!response.success) {
+        errorMsgPopup(response.message || "예약 데이터를 가져오는 중 오류가 발생했습니다.");
+        setData([]);
+        return;
       }
-    } catch (error) {
-      console.error("예약 목록 조회 실패:", error, { params });
-      setError(
-        error.message.includes("Data too long for column 'p_FLOOR_ID'")
-          ? "층 ID가 너무 길어 조회에 실패했습니다. 'XF' 또는 'XXF' 형식을 사용하세요."
-          : `데이터베이스 오류: ${error.message || "예약 목록을 불러오는데 실패했습니다."}`
-      );
+      if (response.errMsg && response.errCd !== "00") {
+        errorMsgPopup(response.errMsg);
+        setData([]);
+        return;
+      }
+      const responseData = Array.isArray(response.data)
+        ? response.data.map((row) => ({ ...row, is_changed: "N", is_added: "N", is_deleted: "N" }))
+        : [];
+      setData(responseData);
+    } catch (err) {
+      errorMsgPopup(err.response?.data?.message || "예약 데이터를 가져오는 중 오류가 발생했습니다.");
+      setData([]);
     } finally {
       setLoading(false);
     }
-  }, [searchName, filters, user]);
+  };
 
-  // 필터 변경 및 검색 시 예약 목록 재로드
+  // 테이블 데이터 업데이트
   useEffect(() => {
-    const handler = setTimeout(() => fetchReservations(), 300);
-    return () => clearTimeout(handler);
-  }, [fetchReservations]);
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    const table = tableInstance.current;
+    if (!table || tableStatus !== "ready" || loading) return;
+    table.setData(data);
+    if (isSearched && data.length === 0 && !loading) {
+      table.alert("검색 결과 없음", "info");
+    } else {
+      table.clearAlert();
+      setRowCount(table.getDataCount());
+    }
+  }, [data, tableStatus, loading, isSearched]);
 
-  // 예약 상태 변경 (승인/반려/연장 처리)
-  const updateReservationStatus = async (reservation, newApprovalStatus, newExtensionStatus = null) => {
+  // 테이블 필터 적용
+  useEffect(() => {
+    if (!tableInstance.current || tableStatus !== "ready" || loading) return;
+    const { filterSelect, filterText } = tableFilters;
+    if (filterText && filterSelect) {
+      tableInstance.current.setFilter(filterSelect, "like", filterText);
+    } else if (filterText) {
+      if (filterText !== "") {
+        tableInstance.current.setFilter(
+          [
+            { field: "RESERVATION_ID", type: "like", value: filterText },
+            { field: "ROOM_ID", type: "like", value: filterText },
+            { field: "USER_ID", type: "like", value: filterText },
+            { field: "ROOM_TYPE", type: "like", value: filterText },
+            { field: "NAME", type: "like", value: filterText },
+            { field: "GENDER", type: "like", value: filterText },
+            { field: "PHONE", type: "like", value: filterText },
+            { field: "RESERVATION_DATE", type: "like", value: filterText },
+            { field: "DURATION", type: "like", value: filterText },
+            { field: "STATUS", type: "like", value: filterText },
+            { field: "EMP_NO", type: "like", value: filterText },
+          ],
+          "or"
+        );
+      } else {
+        tableInstance.current.clearFilter();
+      }
+    } else {
+      tableInstance.current.clearFilter();
+    }
+  }, [tableFilters, tableStatus, loading]);
+
+  // 검색 이벤트 처리
+  const handleDynamicEvent = (eventType) => {
+    if (eventType === "search") handleSearch();
+  };
+
+  // 예약 추가 팝업 열기
+  const handleAddClick = () => setShowAddPopup(true);
+
+  // 예약 추가 확인
+  const handleAddConfirm = () => {
+    if (!newRowData.ROOM_ID || !newRowData.NAME) {
+      errorMsgPopup("호실 ID와 예약자 이름은 필수 입력 항목입니다.");
+      return;
+    }
+    const newRow = {
+      RESERVATION_ID: `TEMP_${Date.now()}`,
+      ...newRowData,
+      CREATED_AT: new Date().toISOString().slice(0, 19).replace("T", " "),
+      UPDATED_AT: new Date().toISOString().slice(0, 19).replace("T", " "),
+      is_deleted: "N",
+      is_changed: "N",
+      is_added: "Y",
+    };
+    setData((prevData) => [newRow, ...prevData]);
+    setShowAddPopup(false);
+    setNewRowData({
+      RESERVATION_ID: "",
+      ROOM_ID: "",
+      USER_ID: user?.id || "admin",
+      ROOM_TYPE: "1인실",
+      NAME: "",
+      GENDER: "Male",
+      PHONE: "",
+      RESERVATION_DATE: new Date().toISOString().split("T")[0],
+      DURATION: 1,
+      STATUS: "",
+      EMP_NO: user?.emp_no || "admin",
+    });
+    if (tableInstance.current) tableInstance.current.redraw();
+  };
+
+  // 예약 추가 취소
+  const handleAddCancel = () => {
+    setShowAddPopup(false);
+    setNewRowData({
+      RESERVATION_ID: "",
+      ROOM_ID: "",
+      USER_ID: user?.id || "admin",
+      ROOM_TYPE: "1인실",
+      NAME: "",
+      GENDER: "Male",
+      PHONE: "",
+      RESERVATION_DATE: new Date().toISOString().split("T")[0],
+      DURATION: 1,
+      STATUS: "",
+      EMP_NO: user?.emp_no || "admin",
+    });
+  };
+
+  // 저장 처리
+  const handleSave = async () => {
+    const changedRows = data.filter((row) => row.is_deleted === "Y" || row.is_added === "Y" || row.is_changed === "Y");
+    if (changedRows.length === 0) {
+      errorMsgPopup("변경된 데이터가 없습니다.");
+      return;
+    }
     setLoading(true);
     try {
-      const response = await api.post(common.getServerUrl("reservation/reservation/save"), {
-        P_GUBUN: "U",
-        P_RESERVATION_ID: reservation.id || "",
-        P_ROOM_ID: reservation.roomId || "",
-        P_ROOM_TYPE: ROOM_TYPE_MAP[reservation.roomType] || reservation.roomType || "SINGLE",
-        P_NAME: reservation.name || "",
-        P_GENDER: reservation.gender === "남성" ? "M" : reservation.gender === "여성" ? "F" : reservation.gender || "",
-        P_PHONE: reservation.phone.replace(/-/g, "") || "",
-        P_START_DATE: reservation.reservationDate || "",
-        P_DURATION: reservation.duration || "",
-        P_EXTENSION_STATUS: newExtensionStatus || reservation.extensionStatus || "NONE",
-        P_APPROVAL_STATUS: newApprovalStatus || reservation.approvalStatus || "",
-        P_PRICE: reservation.amount || 0,
-        P_EMP_ID: user?.empNo || "ADMIN",
-        P_NOTE: newApprovalStatus === "REJECTED" ? "관리자가 반려했습니다." : reservation.note || "",
+      const promises = changedRows.map(async (row) => {
+        const PGUBUN = row.is_deleted === "Y" ? "D" : row.is_added === "Y" ? "I" : "U";
+        const params = {
+          PGUBUN: PGUBUN,
+          PRESERVATION_ID: row.RESERVATION_ID,
+          PROOM_ID: row.ROOM_ID || "",
+          PUSER_ID: row.USER_ID || "admin",
+          PROOM_TYPE: row.ROOM_TYPE || "1인실",
+          PNAME: row.NAME || "",
+          PGENDER: row.GENDER || "Male",
+          PPHONE: row.PHONE || "",
+          PRESERVATION_DATE: row.RESERVATION_DATE || new Date().toISOString().split("T")[0],
+          PDURATION: row.DURATION || 1,
+          PSTATUS: row.STATUS || "",
+          PEMP_NO: row.EMP_NO || user?.emp_no || "admin",
+          P_DEBUG: "F",
+        };
+        try {
+          const response = await fetchData(api, `${common.getServerUrl("reservation/reservation/save")}`, params);
+          if (!response.success || response.errCd !== "00") {
+            throw new Error(response.errMsg || `Failed to process reservation ${row.RESERVATION_ID}`);
+          }
+          return { ...row, success: true, message: response.errMsg || "성공" };
+        } catch (error) {
+          console.error(`Error processing ${PGUBUN} for RESERVATION_ID: ${row.RESERVATION_ID}`, error);
+          return { ...row, success: false, error: error.message };
+        }
       });
-      if (response.data?.success) {
-        alert("처리가 완료되었습니다.");
-        fetchReservations();
+      const results = await Promise.all(promises);
+      const errors = results.filter((result) => !result.success);
+      if (errors.length > 0) {
+        errorMsgPopup(`일부 작업이 실패했습니다: ${errors.map((e) => e.error).join(", ")}`);
       } else {
-        throw new Error(response.data?.errMsg || "처리에 실패했습니다.");
+        msgPopup("모든 변경사항이 성공적으로 저장되었습니다.");
+        setData((prevData) => prevData.map((row) => ({ ...row, is_changed: "N", is_added: "N", is_deleted: "N" })));
+        await handleSearch();
       }
-    } catch (error) {
-      console.error("예약 상태 변경 실패:", error);
-      setError(error.message || "처리 중 오류가 발생했습니다.");
+    } catch (err) {
+      errorMsgPopup(err.message || "저장 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
-
-  // 승인 처리
-  const handleApprove = (reservation) => {
-    if (window.confirm(`${reservation.name}님의 예약을 승인하시겠습니까?`)) {
-      updateReservationStatus(reservation, "APPROVED");
-    }
-  };
-
-  // 반려 처리
-  const handleReject = (reservation) => {
-    if (window.confirm(`${reservation.name}님의 예약을 반려하시겠습니까?`)) {
-      updateReservationStatus(reservation, "REJECTED");
-    }
-  };
-
-  // 연장 승인 처리
-  const handleExtensionApprove = (reservation) => {
-    if (window.confirm(`${reservation.name}님의 연장요청을 승인하시겠습니까?`)) {
-      updateReservationStatus(reservation, reservation.approvalStatus, "APPROVED");
-    }
-  };
-
-  // 연장 반려 처리
-  const handleExtensionReject = (reservation) => {
-    if (window.confirm(`${reservation.name}님의 연장요청을 반려하시겠습니까?`)) {
-      updateReservationStatus(reservation, reservation.approvalStatus, "REJECTED");
-    }
-  };
-
-  // 예약 수정 다이얼로그 열기
-  const handleEditClick = (reservation) => {
-    setSelectedReservation(reservation);
-    setEditForm({
-      name: reservation.name || "",
-      gender: reservation.gender || "",
-      phone: reservation.phone || "",
-      reservationDate: reservation.reservationDate || "",
-      duration: reservation.duration || "",
-      note: reservation.note || "",
-    });
-    setOpenEditDialog(true);
-  };
-
-  // 예약 수정 처리
-  const handleEditConfirm = async () => {
-    if (!editForm.name || !editForm.gender || !editForm.phone || !editForm.reservationDate || !editForm.duration) {
-      alert("모든 필수 정보를 입력해주세요.");
-      return;
-    }
-    if (!editForm.phone.match(/^\d{3}-\d{3,4}-\d{4}$/)) {
-      alert("전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)");
-      return;
-    }
-    if (new Date(editForm.reservationDate) < new Date()) {
-      alert("유효한 미래 날짜를 선택해주세요.");
-      return;
-    }
-    if (!["1", "6", "12"].includes(editForm.duration.toString())) {
-      alert("예약 기간은 1, 6, 12개월 중 하나여야 합니다.");
-      return;
-    }
-
-    try {
-      const response = await api.post(common.getServerUrl("reservation/reservation/save"), {
-        P_GUBUN: "U",
-        P_RESERVATION_ID: selectedReservation.id || "",
-        P_ROOM_ID: selectedReservation.roomId || "",
-        P_ROOM_TYPE: ROOM_TYPE_MAP[selectedReservation.roomType] || selectedReservation.roomType || "SINGLE",
-        P_NAME: editForm.name || "",
-        P_GENDER: editForm.gender === "남성" ? "M" : editForm.gender === "여성" ? "F" : editForm.gender || "",
-        P_PHONE: editForm.phone.replace(/-/g, "") || "",
-        P_START_DATE: editForm.reservationDate || "",
-        P_DURATION: parseInt(editForm.duration) || 1,
-        P_NOTE: editForm.note || "",
-        P_EMP_ID: user?.empNo || "ADMIN",
-      });
-      if (response.data?.success) {
-        alert("예약이 성공적으로 수정되었습니다.");
-        setOpenEditDialog(false);
-        fetchReservations();
-      } else {
-        throw new Error(response.data?.errMsg || "예약 수정에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("예약 수정 실패:", error);
-      setError(error.message || "예약 수정 중 오류가 발생했습니다.");
-    }
-  };
-
-  // 필터 변경 처리
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    if (name === "floorId" && value && !validateFloorId(value)) {
-      alert("층 ID는 'XF' 또는 'XXF' 형식(예: 1F, 10F)여야 합니다.");
-      return;
-    }
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // 검색 버튼 클릭 처리
-  const handleSearch = () => {
-    fetchReservations();
-  };
-
-  // 엔터키로 검색 처리
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
-
-  // 날짜 포맷팅
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  };
-
-  // 가격 포맷팅
-  const formatPrice = (price) => {
-    if (!price) return "0원";
-    return new Intl.NumberFormat("ko-KR").format(Number(price)) + "원";
-  };
-
-  // 상태 색상 설정
-  const getStatusColor = (approvalStatus, extensionStatus) => {
-    if (approvalStatus === "승인대기") return "#FF6B6B";
-    if (extensionStatus === "승인대기") return "#2ecc71";
-    if (approvalStatus === "승인완료") return "#51CF66";
-    if (approvalStatus === "반려") return "#868E96";
-    return "#868E96";
-  };
-
-  // 상태 텍스트 설정
-  const getStatusText = (approvalStatus, extensionStatus) => {
-    if (approvalStatus === "승인대기") return "승인대기";
-    if (extensionStatus === "승인대기") return "연장대기";
-    if (approvalStatus === "승인완료") return "사용중";
-    if (approvalStatus === "반려") return "반려됨";
-    return "완료";
-  };
-
-  // 예약 통계 계산
-  const pendingCount = reservations.filter((r) => r.approvalStatus === "승인대기").length;
-  const approvedCount = reservations.filter((r) => r.approvalStatus === "승인완료").length;
-  const extensionCount = reservations.filter((r) => r.extensionStatus === "승인대기").length;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        width: "100%",
-        margin: "0 auto",
-        background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-        fontFamily: "'Noto Sans KR', 'Roboto', sans-serif",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <header
-        style={{
-          background: "linear-gradient(90deg, #0f172a 0%, #1e293b 100%)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-          padding: "1.2rem 0",
-          width: "100%",
-        }}
+    <div className={styles.container}>
+      <MainSearch config={searchConfig} filters={filters} setFilters={setFilters} onEvent={handleDynamicEvent} />
+      <TableSearch
+        filterFields={filterTableFields}
+        filters={tableFilters}
+        setFilters={setTableFilters}
+        rowCount={rowCount}
+        onDownloadExcel={() => handleDownloadExcel(tableInstance.current, tableStatus, "예약관리.xlsx")}
+        buttonStyles={styles}
       >
-        <div
-          style={{
-            maxWidth: "2400px",
-            margin: "0 auto",
-            padding: "0 1.6rem",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                background: "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)",
-                borderRadius: "9.6px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "19.2px",
-                color: "#f8fafc",
-                fontWeight: "bold",
-              }}
-            >
-              🏢
-            </div>
-            <div>
-              <h1
-                style={{
-                  color: "#f8fafc",
-                  fontSize: "1.6rem",
-                  fontWeight: "700",
-                  margin: 0,
-                  textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
-                }}
-              >
-                (주) 시한432 오피스 - 관리
-              </h1>
-              <p
-                style={{
-                  color: "#d4af37",
-                  fontSize: "0.72rem",
-                  margin: 0,
-                  fontWeight: "400",
-                }}
-              >
-                예약 관리 시스템
-              </p>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-            <span
-              style={{
-                color: "#d4af37",
-                fontSize: "0.8rem",
-                fontWeight: "500",
-              }}
-            >
-              관리자
-            </span>
-            <div
-              style={{
-                width: "32px",
-                height: "32px",
-                background: "linear-gradient(135deg, #d4af37, #ffd700)",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#f8fafc",
-                fontWeight: "bold",
-                fontSize: "0.8rem",
-              }}
-            >
-              JB
-            </div>
-          </div>
+        <div className={styles.btnGroupCustom}>
+          <button className={`${styles.btn} text-bg-primary`} onClick={handleAddClick}>
+            추가
+          </button>
+          <button className={`${styles.btn} text-bg-success`} onClick={handleSave}>
+            저장
+          </button>
         </div>
-      </header>
-
-      <main
-        style={{
-          padding: "2.4rem 1.6rem",
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.2rem",
-          width: "100%",
-          maxWidth: "2400px",
-          margin: "0 auto",
-        }}
-      >
+      </TableSearch>
+      <div className={styles.tableWrapper}>
+        {tableStatus === "initializing" && <div>초기화 중...</div>}
+        {loading && <div>로딩 중...</div>}
         <div
-          style={{
-            flex: "0 0 auto",
-            background: "linear-gradient(180deg, #1e293b 0%, #334155 100%)",
-            padding: "1.6rem",
-            borderRadius: "12px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(212,175,55,0.3)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <select
-              name="floorId"
-              value={filters.floorId}
-              onChange={handleFilterChange}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                width: "120px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-              title="층 ID는 'XF' 또는 'XXF' 형식(예: 1F, 10F)"
-            >
-              <option value="">층 선택</option>
-              {floors.map((floor) => (
-                <option key={floor} value={floor} style={{ color: "#1e293b" }}>
-                  {floor}
-                </option>
-              ))}
-            </select>
-            <select
-              name="section"
-              value={filters.section}
-              onChange={handleFilterChange}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                width: "120px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            >
-              <option value="">섹션 선택</option>
-              {sections.map((section, index) => (
-                <option key={`${section}-${index}`} value={section} style={{ color: "#1e293b" }}>
-                  {section}
-                </option>
-              ))}
-            </select>
-            <select
-              name="roomType"
-              value={filters.roomType}
-              onChange={handleFilterChange}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                width: "120px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            >
-              <option value="">호실 유형</option>
-              {Object.keys(ROOM_TYPE_MAP).map((type) => (
-                <option key={type} value={type} style={{ color: "#1e293b" }}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <select
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                width: "120px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            >
-              <option value="">예약 상태</option>
-              {Object.keys(STATUS_MAP).map((status) => (
-                <option key={status} value={status} style={{ color: "#1e293b" }}>
-                  {status}
-                </option>
-              ))}
-            </select>
-            <select
-              name="extensionStatus"
-              value={filters.extensionStatus}
-              onChange={handleFilterChange}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                width: "120px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            >
-              <option value="">연장 상태</option>
-              {Object.keys(EXTENSION_STATUS_MAP).map((status) => (
-                <option key={status} value={status} style={{ color: "#1e293b" }}>
-                  {status}
-                </option>
-              ))}
-            </select>
-            <select
-              name="approvalStatus"
-              value={filters.approvalStatus}
-              onChange={handleFilterChange}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                width: "120px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            >
-              <option value="">승인 상태</option>
-              {Object.keys(APPROVAL_STATUS_MAP).map((status) => (
-                <option key={status} value={status} style={{ color: "#1e293b" }}>
-                  {status}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              placeholder="예약자 이름"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              onKeyPress={handleKeyPress}
-              style={{
-                padding: "0.4rem 0.8rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                width: "200px",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            />
-            <button
-              style={{
-                padding: "0.6rem 1.2rem",
-                background: "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)",
-                color: "#f8fafc",
-                border: "none",
-                borderRadius: "6.4px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                fontWeight: "bold",
-                transition: "background 0.3s ease",
-              }}
-              onClick={handleSearch}
-              onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #ffd700 0%, #d4af37 100%)")}
-              onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)")}
-            >
-              검색
-            </button>
-            <button
-              style={{
-                padding: "0.6rem 1.2rem",
-                background: "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
-                color: "#f8fafc",
-                border: "none",
-                borderRadius: "6.4px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                fontWeight: "bold",
-                transition: "background 0.3s ease",
-              }}
-              onClick={fetchReservations}
-              onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)")}
-              onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)")}
-            >
-              새로고침
-            </button>
-          </div>
+          ref={tableRef}
+          className={styles.tableSection}
+          style={{ visibility: loading || tableStatus !== "ready" ? "hidden" : "visible" }}
+        />
+      </div>
+      <CommonPopup show={showAddPopup} onHide={handleAddCancel} onConfirm={handleAddConfirm} title="예약 추가">
+        <div className="mb-3">
+          <label className="form-label">예약 ID</label>
+          <input
+            type="text"
+            className={`form-control ${styles.formControl}`}
+            placeholder="예약 ID 입력"
+            value={newRowData.RESERVATION_ID}
+            onChange={(e) => setNewRowData({ ...newRowData, RESERVATION_ID: e.target.value })}
+            disabled
+          />
         </div>
-
-        <div
-          style={{
-            flex: "0 0 auto",
-            background: "linear-gradient(180deg, #1e293b 0%, #334155 100%)",
-            padding: "1.6rem",
-            borderRadius: "12px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(212,175,55,0.3)",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "1.2rem",
-          }}
-        >
-          <div
-            style={{
-              background: "linear-gradient(135deg, rgba(212,175,55,0.1) 0%, rgba(255,215,0,0.2) 100%)",
-              padding: "1.6rem",
-              borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              border: "0.8px solid rgba(212,175,55,0.3)",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "#d4af37", fontSize: "0.8rem", margin: 0 }}>승인 대기</p>
-            <p style={{ fontSize: "2rem", fontWeight: "700", color: "#f8fafc", margin: "0.5rem 0" }}>{pendingCount}</p>
-          </div>
-          <div
-            style={{
-              background: "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
-              padding: "1.6rem",
-              borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              border: "0.8px solid rgba(46, 204, 113, 0.3)",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "#2ecc71", fontSize: "0.8rem", margin: 0 }}>사용 중</p>
-            <p style={{ fontSize: "2rem", fontWeight: "700", color: "#f8fafc", margin: "0.5rem 0" }}>{approvedCount}</p>
-          </div>
-          <div
-            style={{
-              background: "linear-gradient(135deg, #4ECDC4 0%, #38D9A9 100%)",
-              padding: "1.6rem",
-              borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              border: "0.8px solid rgba(78, 205, 196, 0.3)",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "#4ECDC4", fontSize: "0.8rem", margin: 0 }}>연장 요청</p>
-            <p style={{ fontSize: "2rem", fontWeight: "700", color: "#f8fafc", margin: "0.5rem 0" }}>{extensionCount}</p>
-          </div>
-          <div
-            style={{
-              background: "linear-gradient(135deg, rgba(212,175,55,0.1) 0%, rgba(255,215,0,0.2) 100%)",
-              padding: "1.6rem",
-              borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              border: "0.8px solid rgba(212,175,55,0.3)",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "#d4af37", fontSize: "0.8rem", margin: 0 }}>전체 예약</p>
-            <p style={{ fontSize: "2rem", fontWeight: "700", color: "#f8fafc", margin: "0.5rem 0" }}>{reservations.length}</p>
-          </div>
+        <div className="mb-3">
+          <label className="form-label">호실 ID</label>
+          <input
+            type="text"
+            className={`form-control ${styles.formControl}`}
+            placeholder="호실 ID 입력"
+            value={newRowData.ROOM_ID}
+            onChange={(e) => setNewRowData({ ...newRowData, ROOM_ID: e.target.value })}
+          />
         </div>
-
-        {loading ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "30px",
-              fontSize: "16px",
-              color: "#f8fafc",
-              background: "rgba(255,255,255,0.1)",
-              borderRadius: "8px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            }}
+        <div className="mb-3">
+          <label className="form-label">호실 유형</label>
+          <select
+            className={`form-select ${styles.formSelect}`}
+            value={newRowData.ROOM_TYPE}
+            onChange={(e) => setNewRowData({ ...newRowData, ROOM_TYPE: e.target.value })}
           >
-            데이터를 불러오는 중입니다...
-          </div>
-        ) : error ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "30px",
-              fontSize: "16px",
-              color: "#FF6B6B",
-              background: "rgba(255,255,255,0.1)",
-              borderRadius: "8px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            }}
-          >
-            {error}
-          </div>
-        ) : reservations.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "30px",
-              fontSize: "16px",
-              color: "#f8fafc",
-              background: "rgba(255,255,255,0.1)",
-              borderRadius: "8px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            }}
-          >
-            예약 정보가 없습니다.
-          </div>
-        ) : (
-          <div
-            style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 100%)",
-              borderRadius: "20px",
-              overflowX: "auto",
-              boxShadow: "0 16px 40px rgba(0,0,0,0.2)",
-              border: "2px solid rgba(212,175,55,0.2)",
-              backdropFilter: "blur(15px)",
-            }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "14px",
-                color: "#f8fafc",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    background: "linear-gradient(90deg, #0f172a 0%, #1e293b 100%)",
-                    borderBottom: "2px solid #d4af37",
-                  }}
-                >
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>예약 ID</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>호실</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>층</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>방 종류</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>예약자</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>성별</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>전화번호</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>시작일</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>만료일</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>금액</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>상태</th>
-                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reservations.map((reservation, index) => (
-                  <tr
-                    key={reservation.id || index}
-                    style={{
-                      transition: "background 0.3s ease",
-                      "&:hover": {
-                        background: "rgba(255,255,255,0.1)",
-                      },
-                    }}
-                  >
-                    <td style={{ padding: "10px", textAlign: "center" }}>{reservation.id}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{reservation.roomId}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{reservation.floorId}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{reservation.roomType}</td>
-                    <td style={{ padding: "10px", textAlign: "center", fontWeight: "bold" }}>{reservation.name}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{reservation.gender}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{reservation.phone}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{formatDate(reservation.reservationDate)}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{formatDate(reservation.expiryDate)}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{formatPrice(reservation.amount)}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      <span
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "16px",
-                          color: "#f8fafc",
-                          fontWeight: "bold",
-                          fontSize: "12px",
-                          textAlign: "center",
-                          minWidth: "60px",
-                          display: "inline-block",
-                          backgroundColor: getStatusColor(reservation.approvalStatus, reservation.extensionStatus),
-                        }}
-                      >
-                        {getStatusText(reservation.approvalStatus, reservation.extensionStatus)}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      {reservation.approvalStatus === "승인대기" && (
-                        <>
-                          <button
-                            style={{
-                              padding: "6px 12px",
-                              margin: "0 4px",
-                              border: "none",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              background: "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
-                              color: "#f8fafc",
-                              transition: "background 0.2s",
-                            }}
-                            onClick={() => handleApprove(reservation)}
-                            onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)")}
-                            onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)")}
-                          >
-                            승인
-                          </button>
-                          <button
-                            style={{
-                              padding: "6px 12px",
-                              margin: "0 4px",
-                              border: "none",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              background: "linear-gradient(135deg, #FF6B6B 0%, #e74c3c 100%)",
-                              color: "#f8fafc",
-                              transition: "background 0.2s",
-                            }}
-                            onClick={() => handleReject(reservation)}
-                            onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #e74c3c 0%, #FF6B6B 100%)")}
-                            onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #FF6B6B 0%, #e74c3c 100%)")}
-                          >
-                            반려
-                          </button>
-                        </>
-                      )}
-                      {reservation.extensionStatus === "승인대기" && (
-                        <>
-                          <button
-                            style={{
-                              padding: "6px 12px",
-                              margin: "0 4px",
-                              border: "none",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              background: "linear-gradient(135deg, #4ECDC4 0%, #38D9A9 100%)",
-                              color: "#f8fafc",
-                              transition: "background 0.2s",
-                            }}
-                            onClick={() => handleExtensionApprove(reservation)}
-                            onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #38D9A9 0%, #4ECDC4 100%)")}
-                            onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #4ECDC4 0%, #38D9A9 100%)")}
-                          >
-                            연장승인
-                          </button>
-                          <button
-                            style={{
-                              padding: "6px 12px",
-                              margin: "0 4px",
-                              border: "none",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              background: "linear-gradient(135deg, #FF6B6B 0%, #e74c3c 100%)",
-                              color: "#f8fafc",
-                              transition: "background 0.2s",
-                            }}
-                            onClick={() => handleExtensionReject(reservation)}
-                            onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #e74c3c 0%, #FF6B6B 100%)")}
-                            onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #FF6B6B 0%, #e74c3c 100%)")}
-                          >
-                            연장반려
-                          </button>
-                        </>
-                      )}
-                      {reservation.approvalStatus === "승인완료" && reservation.extensionStatus === "없음" && (
-                        <span style={{ color: "#51CF66", fontWeight: "bold" }}>✅ 사용중</span>
-                      )}
-                      {reservation.approvalStatus === "반려" && <span style={{ color: "#FF6B6B", fontWeight: "bold" }}>❌ 반려됨</span>}
-                      <button
-                        style={{
-                          padding: "6px 12px",
-                          margin: "0 4px",
-                          border: "none",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          background: "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)",
-                          color: "#f8fafc",
-                          transition: "background 0.2s",
-                        }}
-                        onClick={() => handleEditClick(reservation)}
-                        onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #ffd700 0%, #d4af37 100%)")}
-                        onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)")}
-                      >
-                        수정
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </main>
-
-      {openEditDialog && (
-        <div
-          style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
-            borderRadius: "8px",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-            padding: "15px",
-            maxWidth: "400px",
-            width: "90%",
-            zIndex: 1000,
-            border: "2px solid #d4af37",
-          }}
-        >
-          <h2 style={{ fontSize: "18px", margin: "0 0 10px", textAlign: "center", color: "#f8fafc" }}>예약 수정</h2>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              background: "rgba(255,255,255,0.05)",
-              padding: "15px",
-              borderRadius: "6px",
-            }}
-          >
-            <input
-              type="text"
-              placeholder="예약자 이름"
-              value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              style={{
-                padding: "0.4rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            />
-            <select
-              value={editForm.gender}
-              onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
-              style={{
-                padding: "0.4rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                cursor: "pointer",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            >
-              <option value="">성별 선택</option>
-              <option value="남성" style={{ color: "#1e293b" }}>
-                남성
+            <option value="">선택하세요</option>
+            {roomTypeOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
-              <option value="여성" style={{ color: "#1e293b" }}>
-                여성
-              </option>
-            </select>
-            <input
-              type="text"
-              placeholder="전화번호 (예: 010-1234-5678)"
-              value={editForm.phone}
-              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-              style={{
-                padding: "0.4rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            />
-            <input
-              type="date"
-              value={editForm.reservationDate}
-              onChange={(e) => setEditForm({ ...editForm, reservationDate: e.target.value })}
-              style={{
-                padding: "0.4rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            />
-            <input
-              type="number"
-              placeholder="예약 기간 (개월)"
-              value={editForm.duration}
-              onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
-              style={{
-                padding: "0.4rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            />
-            <textarea
-              placeholder="특이사항"
-              value={editForm.note}
-              onChange={(e) => setEditForm({ ...editForm, note: e.target.value })}
-              rows="3"
-              style={{
-                padding: "0.4rem",
-                borderRadius: "6.4px",
-                border: "1.6px solid #d4af37",
-                fontSize: "0.8rem",
-                background: "rgba(15,23,42,0.8)",
-                color: "#f8fafc",
-                outline: "none",
-                transition: "border-color 0.3s ease",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#ffd700")}
-              onBlur={(e) => (e.target.style.borderColor = "#d4af37")}
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: "10px",
-              marginTop: "10px",
-            }}
-          >
-            <button
-              style={{
-                padding: "0.6rem 1.2rem",
-                background: "linear-gradient(135deg, #868E96 0%, #6B7280 100%)",
-                color: "#f8fafc",
-                border: "none",
-                borderRadius: "6.4px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                fontWeight: "bold",
-                transition: "background 0.3s ease",
-              }}
-              onClick={() => setOpenEditDialog(false)}
-              onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #6B7280 0%, #868E96 100%)")}
-              onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #868E96 0%, #6B7280 100%)")}
-            >
-              취소
-            </button>
-            <button
-              style={{
-                padding: "0.6rem 1.2rem",
-                background: "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)",
-                color: "#f8fafc",
-                border: "none",
-                borderRadius: "6.4px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                fontWeight: "bold",
-                transition: "background 0.3s ease",
-              }}
-              onClick={handleEditConfirm}
-              onMouseEnter={(e) => (e.target.style.background = "linear-gradient(135deg, #ffd700 0%, #d4af37 100%)")}
-              onMouseLeave={(e) => (e.target.style.background = "linear-gradient(135deg, #d4af37 0%, #ffd700 100%)")}
-            >
-              저장
-            </button>
-          </div>
+            ))}
+          </select>
         </div>
-      )}
+        <div className="mb-3">
+          <label className="form-label">예약자 이름</label>
+          <input
+            type="text"
+            className={`form-control ${styles.formControl}`}
+            placeholder="예약자 이름 입력"
+            value={newRowData.NAME}
+            onChange={(e) => setNewRowData({ ...newRowData, NAME: e.target.value })}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">성별</label>
+          <select
+            className={`form-select ${styles.formSelect}`}
+            value={newRowData.GENDER}
+            onChange={(e) => setNewRowData({ ...newRowData, GENDER: e.target.value })}
+          >
+            {getFieldOptions("GENDER").map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">전화번호</label>
+          <input
+            type="text"
+            className={`form-control ${styles.formControl}`}
+            placeholder="전화번호 입력 (예: 010-1234-5678)"
+            value={newRowData.PHONE}
+            onChange={(e) => setNewRowData({ ...newRowData, PHONE: e.target.value })}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">예약 날짜</label>
+          <input
+            type="date"
+            className={`form-control ${styles.formControl}`}
+            value={newRowData.RESERVATION_DATE}
+            onChange={(e) => setNewRowData({ ...newRowData, RESERVATION_DATE: e.target.value })}
+          />
+        </div>
+        <div className="mb-3">
+          <label className="form-label">기간(개월)</label>
+          <select
+            className={`form-select ${styles.formSelect}`}
+            value={newRowData.DURATION}
+            onChange={(e) => setNewRowData({ ...newRowData, DURATION: parseInt(e.target.value) })}
+          >
+            {getFieldOptions("DURATION").map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">상태</label>
+          <select
+            className={`form-select ${styles.formSelect}`}
+            value={newRowData.STATUS}
+            onChange={(e) => setNewRowData({ ...newRowData, STATUS: e.target.value })}
+          >
+            {getFieldOptions("STATUS").map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3">
+          <label className="form-label">직원 번호</label>
+          <input
+            type="text"
+            className={`form-control ${styles.formControl}`}
+            placeholder="직원 번호 입력"
+            value={newRowData.EMP_NO}
+            onChange={(e) => setNewRowData({ ...newRowData, EMP_NO: e.target.value })}
+          />
+        </div>
+      </CommonPopup>
     </div>
   );
 };

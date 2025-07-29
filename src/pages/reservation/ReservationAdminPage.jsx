@@ -25,7 +25,8 @@ import { msgPopup } from "../../utils/msgPopup";
 const fn_CellText = { editor: "input", editable: true }; // 텍스트 입력 편집기 설정
 const fn_CellNumber = { editor: "number", editorParams: { min: 0 }, editable: true }; // 숫자 입력 편집기 설정
 const fn_CellSelect = (values) => ({ editor: "list", editorParams: { values, autocomplete: true }, editable: true }); // 드롭다운 선택 편집기 설정
-const fn_CellButton = (label, className, onClick) => ({ // 버튼 형식 편집기 설정
+const fn_CellButton = (label, className, onClick) => ({
+  // 버튼 형식 편집기 설정
   formatter: (cell) => {
     const button = document.createElement("button");
     button.className = `btn btn-sm ${className}`;
@@ -36,7 +37,8 @@ const fn_CellButton = (label, className, onClick) => ({ // 버튼 형식 편집�
 });
 
 // 셀 편집 처리 함수
-const fn_HandleCellEdit = (cell, field, setData, tableInstance) => { // 셀 편집 후 데이터 업데이트
+const fn_HandleCellEdit = (cell, field, setData, tableInstance) => {
+  // 셀 편집 후 데이터 업데이트
   const rowId = `${cell.getRow().getData().ROOM_ID}`;
   const newValue = cell.getValue();
   setTimeout(() => {
@@ -57,7 +59,8 @@ const fn_HandleCellEdit = (cell, field, setData, tableInstance) => { // 셀 편�
 };
 
 // 필드 옵션 데이터 반환
-const getFieldOptions = (fieldId) => { // 필드별 옵션 데이터 반환
+const getFieldOptions = (fieldId) => {
+  // 필드별 옵션 데이터 반환
   const optionsMap = {
     ROOM_TYPE: [
       { value: "", label: "전체" },
@@ -79,11 +82,12 @@ const roomSizeMap = {
 };
 
 // 호실 크기 기반으로 colSpan과 rowSpan 계산
-const calculateSpan = (roomType) => { // 호실 유형에 따른 그리드 스팬 계산
+const calculateSpan = (roomType) => {
+  // 호실 유형에 따른 그리드 스팬 계산
   const size = roomSizeMap[roomType] || 1;
   if (size === 1) return { colSpan: 1, rowSpan: 1 };
-  if (size === 2) return { colSpan: 2, rowSpan: 1 };
-  if (size === 4) return { colSpan: 2, rowSpan: 2 };
+  if (size === 2) return { colSpan: 2, rowSpan: 1 }; // 기본값 2x1 (가로)
+  if (size === 4) return { colSpan: 2, rowSpan: 2 }; // 기본값 2x2
   if (size === 8) return { colSpan: 2, rowSpan: 4 }; // 8인실 강제 2x4로 설정
   return { colSpan: 1, rowSpan: 1 };
 };
@@ -202,14 +206,16 @@ const ReservationAdminPage = () => {
   const tableRef = useRef(null); // 테이블 참조
   const tableInstance = useRef(null); // 테이블 인스턴스 참조
   const isInitialRender = useRef(true); // 초기 렌더링 플래그
-  const [newRowData, setNewRowData] = useState({ // 새 행 데이터 초기값
+  const [newRowData, setNewRowData] = useState({
+    // 새 행 데이터 초기값
     FLOOR_ID: "",
     SECTION: "",
     ROOM_TYPE: "1인실",
     PRICE: 0,
     ROOM_INDEX: 1,
   });
-  const [dragState, setDragState] = useState({ // 드래그 상태
+  const [dragState, setDragState] = useState({
+    // 드래그 상태
     isDragging: false,
     startCell: null,
     endCell: null,
@@ -438,12 +444,14 @@ const ReservationAdminPage = () => {
     }
   };
 
-  useEffect(() => { // 사용자 권한 확인 및 초기 데이터 로드
+  useEffect(() => {
+    // 사용자 권한 확인 및 초기 데이터 로드
     if (!user || !hasPermission(user.auth, "menuManage")) navigate("/");
     else loadData();
   }, [user, navigate]);
 
-  useEffect(() => { // 테이블 초기화
+  useEffect(() => {
+    // 테이블 초기화
     const initializeTable = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       if (!tableRef.current) {
@@ -452,14 +460,22 @@ const ReservationAdminPage = () => {
       }
       try {
         tableInstance.current = createTable(tableRef.current, columns, [], {
-          editable: true,
+          selectable: true, // 행 선택 가능하도록 설정
+          selectableRangeMode: "click", // 클릭으로 선택 활성화
           rowFormatter: (row) => {
             const data = row.getData();
             const el = row.getElement();
-            el.classList.remove(styles.deletedRow, styles.addedRow, styles.editedRow);
-            if (data.isDeleted === "Y") el.classList.add(styles.deletedRow);
-            else if (data.isAdded === "Y") el.classList.add(styles.addedRow);
-            else if (data.isChanged === "Y") el.classList.add(styles.editedRow);
+            el.classList.remove("tabulator-selected", styles.addedRow, styles.editedRow);
+
+            if (data.isDeleted === "Y") {
+              row.select(); // 삭제된 행을 자동 선택
+              el.style.backgroundColor = "#ffcccc"; // 연한 빨간색 하이라이트
+            } else if (data.isAdded === "Y") {
+              el.classList.add(styles.addedRow);
+              el.style.backgroundColor = "#d4edda"; // 추가 시 하이라이트
+            } else if (data.isChanged === "Y") {
+              el.classList.add(styles.editedRow);
+            }
           },
         });
         setTableStatus("ready");
@@ -478,7 +494,8 @@ const ReservationAdminPage = () => {
     };
   }, []);
 
-  useEffect(() => { // 데이터 변경 시 테이블 갱신
+  useEffect(() => {
+    // 데이터 변경 시 테이블 갱신
     if (isInitialRender.current) {
       isInitialRender.current = false;
       return;
@@ -493,7 +510,8 @@ const ReservationAdminPage = () => {
     }
   }, [data, tableStatus, loading, isSearched]);
 
-  useEffect(() => { // 필터 적용
+  useEffect(() => {
+    // 필터 적용
     if (isInitialRender.current || !tableInstance.current || tableStatus !== "ready" || loading) return;
     const { filterSelect, filterText } = tableFilters;
     if (filterText && filterSelect) tableInstance.current.setFilter(filterSelect, "like", filterText);
@@ -514,7 +532,8 @@ const ReservationAdminPage = () => {
     } else if (filterSelect) tableInstance.current.clearFilter();
   }, [tableFilters, tableStatus, loading]);
 
-  useEffect(() => { // 드래그 중 그리드 업데이트
+  useEffect(() => {
+    // 드래그 중 그리드 업데이트
     if (dragState.isDragging && selectedFloor) {
       const { startCell, endCell, section } = dragState;
       if (startCell && endCell) {
@@ -526,24 +545,27 @@ const ReservationAdminPage = () => {
           ...prev,
           [selectedFloor]: {
             ...prev[selectedFloor],
-            [section]: prev[selectedFloor]?.[section]?.map((item) =>
-              item.col >= colStart && item.col <= colEnd && item.row >= rowStart && item.row <= rowEnd
-                ? { ...item, isDragging: true }
-                : item
-            ) || [],
+            [section]:
+              prev[selectedFloor]?.[section]?.map((item) =>
+                item.col >= colStart && item.col <= colEnd && item.row >= rowStart && item.row <= rowEnd
+                  ? { ...item, isDragging: true }
+                  : item
+              ) || [],
           },
         }));
       }
     }
   }, [dragState, selectedFloor]);
 
-  const handleDynamicEvent = (eventType) => { // 동적 이벤트 처리
+  const handleDynamicEvent = (eventType) => {
+    // 동적 이벤트 처리
     if (eventType === "search") loadData();
   };
 
   const handleAddClick = () => setShowAddPopup(true); // 추가 버튼 클릭 처리
 
-  const handleAddConfirm = () => { // 추가 확인 처리
+  const handleAddConfirm = () => {
+    // 추가 확인 처리
     if (!newRowData.FLOOR_ID || !newRowData.SECTION || !newRowData.ROOM_TYPE) {
       errorMsgPopup("층 ID, 섹션, 호실 유형은 필수 입력 항목입니다.");
       return;
@@ -575,10 +597,7 @@ const ReservationAdminPage = () => {
     const existingIndexes = data
       .filter(
         (row) =>
-          row.FLOOR_ID === newRowData.FLOOR_ID &&
-          row.SECTION === newRowData.SECTION &&
-          row.isDeleted !== "Y" &&
-          row.STATUS !== "사용 중"
+          row.FLOOR_ID === newRowData.FLOOR_ID && row.SECTION === newRowData.SECTION && row.isDeleted !== "Y" && row.STATUS !== "사용 중"
       )
       .map((row) => parseInt(row.ROOM_ID.replace(`${row.FLOOR_ID}${row.SECTION}`, "")) || 0);
     const newRoomIndex = Math.max(0, ...existingIndexes) + 1;
@@ -639,7 +658,8 @@ const ReservationAdminPage = () => {
     });
   };
 
-  const handleAddCancel = () => { // 추가 취소 처리
+  const handleAddCancel = () => {
+    // 추가 취소 처리
     setShowAddPopup(false);
     setNewRowData({
       FLOOR_ID: "",
@@ -650,7 +670,8 @@ const ReservationAdminPage = () => {
     });
   };
 
-  const handleDelete = (rowData) => { // 호실 삭제 처리
+  const handleDelete = (rowData) => {
+    // 호실 삭제 처리
     if (!rowData || !rowData.ROOM_ID) {
       errorMsgPopup("삭제할 데이터가 없습니다.");
       return;
@@ -658,6 +679,13 @@ const ReservationAdminPage = () => {
     if (rowData.STATUS === "사용 중") {
       errorMsgPopup("사용 중인 호실은 삭제할 수 없습니다.");
       return;
+    }
+    const table = tableInstance.current;
+    if (table) {
+      const row = table.getRows().find((r) => r.getData().ROOM_ID === rowData.ROOM_ID);
+      if (row) {
+        row.select(); // 삭제 버튼 클릭 시 해당 행 선택
+      }
     }
     setData((prevData) =>
       prevData.map((row) =>
@@ -668,23 +696,24 @@ const ReservationAdminPage = () => {
       ...prev,
       [rowData.FLOOR_ID]: {
         ...prev[rowData.FLOOR_ID],
-        [rowData.SECTION]: prev[rowData.FLOOR_ID]?.[rowData.SECTION]?.filter(
-          (_, i) => i !== prev[rowData.FLOOR_ID]?.[rowData.SECTION]?.indexOf(rowData.ROOM_TYPE || "1인실")
-        ) || [],
+        [rowData.SECTION]:
+          prev[rowData.FLOOR_ID]?.[rowData.SECTION]?.filter(
+            (_, i) => i !== prev[rowData.FLOOR_ID]?.[rowData.SECTION]?.indexOf(rowData.ROOM_TYPE || "1인실")
+          ) || [],
       },
     }));
     setGridLayout((prev) => ({
       ...prev,
       [rowData.FLOOR_ID]: {
         ...prev[rowData.FLOOR_ID],
-        [rowData.SECTION]: prev[rowData.FLOOR_ID]?.[rowData.SECTION]?.filter(
-          (item) => !(item.col === rowData.col && item.row === rowData.row)
-        ) || [],
+        [rowData.SECTION]:
+          prev[rowData.FLOOR_ID]?.[rowData.SECTION]?.filter((item) => !(item.col === rowData.col && item.row === rowData.row)) || [],
       },
     }));
   };
 
-  const handleAddFloor = () => { // 새 층 추가 처리
+  const handleAddFloor = () => {
+    // 새 층 추가 처리
     if (!newFloorInput) {
       errorMsgPopup("층 ID를 입력해주세요.");
       return;
@@ -712,18 +741,33 @@ const ReservationAdminPage = () => {
     msgPopup(`새로운 층 ${newFloorInput}가 추가되었습니다.`);
   };
 
-  const handleDeleteFloor = () => { // 층 삭제 처리
-    if (!selectedFloor) {
-      errorMsgPopup("삭제할 층을 먼저 선택하세요.");
+  const handleDeleteFloor = () => {
+    if (!newFloorInput) {
+      errorMsgPopup("삭제할 층 ID를 입력해주세요.");
       return;
     }
-    const isInUse = data.some((item) => item.FLOOR_ID === selectedFloor && item.STATUS === "사용 중");
+    if (!newFloorInput.match(/^[0-9]+F$/)) {
+      errorMsgPopup("층 ID는 1F, 2F 등의 형식이어야 합니다.");
+      return;
+    }
+    if (!floors.includes(newFloorInput)) {
+      errorMsgPopup("입력한 층 ID가 존재하지 않습니다.");
+      return;
+    }
+    const isInUse = data.some((item) => item.FLOOR_ID === newFloorInput && item.STATUS === "사용 중");
     if (isInUse) {
       errorMsgPopup("사용 중인 층은 삭제할 수 없습니다.");
       return;
     }
 
-    setData((prevData) => prevData.filter((row) => row.FLOOR_ID !== selectedFloor));
+    setData((prevData) =>
+      prevData.map((row) =>
+        row.FLOOR_ID === selectedFloor && row.isDeleted !== "Y" && row.STATUS !== "사용 중"
+          ? { ...row, isDeleted: "Y", isChanged: row.isAdded === "Y" ? "N" : "Y" }
+          : row
+      )
+    );
+
     setSectionLayout((prev) => {
       const newLayout = { ...prev };
       delete newLayout[selectedFloor];
@@ -734,23 +778,21 @@ const ReservationAdminPage = () => {
       delete newLayout[selectedFloor];
       return newLayout;
     });
+
     setFloors((prev) => prev.filter((floor) => floor !== selectedFloor));
     setSelectedFloor(floors.find((floor) => floor !== selectedFloor) || "");
-    msgPopup(`층 ${selectedFloor}가 삭제되었습니다.`);
+    // msgPopup(`층 ${selectedFloor}가 삭제되었습니다.`);
   };
 
-  const handleMouseDown = (section, col, row) => { // 마우스 다운 이벤트 처리
+  const handleMouseDown = (section, col, row) => {
+    // 마우스 다운 이벤트 처리
     if (!selectedFloor) {
       errorMsgPopup("층을 먼저 선택하세요.");
       return;
     }
     const isOccupied = data.some(
       (item) =>
-        item.FLOOR_ID === selectedFloor &&
-        item.SECTION === section &&
-        item.col === col &&
-        item.row === row &&
-        item.STATUS === "사용 중"
+        item.FLOOR_ID === selectedFloor && item.SECTION === section && item.col === col && item.row === row && item.STATUS === "사용 중"
     );
     if (isOccupied) {
       errorMsgPopup("사용 중인 호실은 수정할 수 없습니다.");
@@ -764,7 +806,8 @@ const ReservationAdminPage = () => {
     });
   };
 
-  const handleMouseOver = (col, row) => { // 마우스 오버 이벤트 처리
+  const handleMouseOver = (col, row) => {
+    // 마우스 오버 이벤트 처리
     if (dragState.isDragging && selectedFloor) {
       setDragState((prev) => ({
         ...prev,
@@ -773,7 +816,7 @@ const ReservationAdminPage = () => {
     }
   };
 
-  const handleMouseUp = () => { // 마우스 업 이벤트 처리
+  const handleMouseUp = () => {
     if (!dragState.isDragging || !selectedFloor) return;
     const { startCell, endCell, section } = dragState;
 
@@ -785,16 +828,48 @@ const ReservationAdminPage = () => {
     let rowSpan = rowEnd - rowStart + 1;
     const size = colSpan * rowSpan;
 
+    // 크기 및 방향 검증: 1, 2, 4, 8만 허용, 2인실과 4인실의 유효한 패턴 적용
     if (![1, 2, 4, 8].includes(size)) {
       errorMsgPopup("선택한 셀 크기는 1, 2, 4, 8 중 하나여야 합니다.");
       setDragState({ isDragging: false, startCell: null, endCell: null, section: null });
       return;
     }
 
-    let roomType = size === 1 ? "1인실" : size === 2 ? "2인실" : size === 4 ? "4인실" : "8인실";
-    if (roomType === "8인실") {
-      colSpan = 2; // 8인실 강제 2열
-      rowSpan = 4; // 8인실 강제 4행
+    let roomType, adjustedColSpan, adjustedRowSpan;
+    if (size === 1) {
+      roomType = "1인실";
+      adjustedColSpan = 1;
+      adjustedRowSpan = 1;
+    } else if (size === 2) {
+      roomType = "2인실";
+      if (colSpan === 1 && rowSpan === 2) {
+        adjustedColSpan = 1;
+        adjustedRowSpan = 2; // 1x2 (세로)
+      } else if (colSpan === 2 && rowSpan === 1) {
+        adjustedColSpan = 2;
+        adjustedRowSpan = 1; // 2x1 (가로)
+      } else {
+        errorMsgPopup("2인실은 1x2 또는 2x1 형식이어야 합니다.");
+        setDragState({ isDragging: false, startCell: null, endCell: null, section: null });
+        return;
+      }
+    } else if (size === 4) {
+      roomType = "4인실";
+      if (colSpan === 1 && rowSpan === 4) {
+        adjustedColSpan = 1;
+        adjustedRowSpan = 4; // 1x4 (세로)
+      } else if (colSpan === 2 && rowSpan === 2) {
+        adjustedColSpan = 2;
+        adjustedRowSpan = 2; // 2x2 (가로)
+      } else {
+        errorMsgPopup("4인실은 1x4 또는 2x2 형식이어야 합니다.");
+        setDragState({ isDragging: false, startCell: null, endCell: null, section: null });
+        return;
+      }
+    } else if (size === 8) {
+      roomType = "8인실";
+      adjustedColSpan = 2;
+      adjustedRowSpan = 4; // 2x4로 고정
     }
 
     const currentSize = sectionLayout[selectedFloor]?.[section]?.reduce((sum, r) => sum + (roomSizeMap[r || "1인실"] || 0), 0) || 0;
@@ -832,8 +907,8 @@ const ReservationAdminPage = () => {
       STATUS: "사용 가능",
       col: colStart,
       row: rowStart,
-      colSpan,
-      rowSpan,
+      colSpan: adjustedColSpan,
+      rowSpan: adjustedRowSpan,
       isDeleted: "N",
       isChanged: "N",
       isAdded: "Y",
@@ -853,14 +928,23 @@ const ReservationAdminPage = () => {
         ...prev[selectedFloor],
         [section]: [
           ...(prev[selectedFloor]?.[section] || []),
-          { roomType, col: colStart, row: rowStart, colSpan, rowSpan, size, orientation: colSpan > rowSpan ? "horizontal" : "vertical" },
+          {
+            roomType,
+            col: colStart,
+            row: rowStart,
+            colSpan: adjustedColSpan,
+            rowSpan: adjustedRowSpan,
+            size,
+            orientation: adjustedColSpan > adjustedRowSpan ? "horizontal" : "vertical",
+          },
         ],
       },
     }));
     setDragState({ isDragging: false, startCell: null, endCell: null, section: null });
   };
 
-  const removeRoom = (section, index) => { // 호실 제거 처리
+  const removeRoom = (section, index) => {
+    // 호실 제거 처리
     if (!selectedFloor) {
       errorMsgPopup("층을 먼저 선택하세요.");
       return;
@@ -905,58 +989,8 @@ const ReservationAdminPage = () => {
     }));
   };
 
-  const rotateRoom = (section, index) => { // 호실 회전 처리
-    if (!selectedFloor) {
-      errorMsgPopup("층을 먼저 선택하세요.");
-      return;
-    }
-    const room = gridLayout[selectedFloor]?.[section]?.[index];
-    if (!room || (room.roomType || "1인실") !== "2인실") {
-      errorMsgPopup("2인실만 회전할 수 있습니다.");
-      return;
-    }
-    const newOrientation = room.orientation === "horizontal" ? "vertical" : "horizontal";
-    const newColSpan = room.orientation === "horizontal" ? 1 : 2;
-    const newRowSpan = room.orientation === "horizontal" ? 2 : 1;
-
-    const isOverlapping = gridLayout[selectedFloor]?.[section]?.some((item, i) => {
-      if (i === index) return false;
-      const itemColEnd = item.col + (item.colSpan || 1) - 1;
-      const itemRowEnd = item.row + (item.rowSpan || 1) - 1;
-      const newColEnd = room.col + newColSpan - 1;
-      const newRowEnd = room.row + newRowSpan - 1;
-      return !(newColEnd < item.col || room.col > itemColEnd || newRowEnd < item.row || room.row > itemRowEnd);
-    });
-    if (isOverlapping) {
-      errorMsgPopup("회전 후 위치가 다른 호실과 겹칩니다.");
-      return;
-    }
-
-    setGridLayout((prev) => ({
-      ...prev,
-      [selectedFloor]: {
-        ...prev[selectedFloor],
-        [section]: prev[selectedFloor][section].map((item, i) =>
-          i === index ? { ...item, orientation: newOrientation, colSpan: newColSpan, rowSpan: newRowSpan } : item
-        ),
-      },
-    }));
-    const roomId = data.find(
-      (row) =>
-        row.FLOOR_ID === selectedFloor &&
-        row.SECTION === section &&
-        row.ROOM_TYPE === (room.roomType || "1인실") &&
-        row.col === room.col &&
-        row.row === room.row
-    )?.ROOM_ID;
-    if (roomId) {
-      setData((prevData) =>
-        prevData.map((row) => (row.ROOM_ID === roomId ? { ...row, isChanged: "Y", colSpan: newColSpan, rowSpan: newRowSpan } : row))
-      );
-    }
-  };
-
-  const handleSaveLayout = async (e) => { // 레이아웃 저장 처리
+  const handleSaveLayout = async (e) => {
+    // 레이아웃 저장 처리
     e.preventDefault();
     const changedRows = data.filter(
       (row) => (row.isDeleted === "Y" && row.isAdded !== "Y") || row.isAdded === "Y" || (row.isChanged === "Y" && row.isDeleted === "N")
@@ -984,8 +1018,12 @@ const ReservationAdminPage = () => {
     try {
       for (const row of changedRows) {
         let p_GUBUN = "";
-        if (row.isDeleted === "Y" && row.isAdded !== "Y") p_GUBUN = "D";
-        else if (row.isAdded === "Y") p_GUBUN = "I";
+        if (row.isDeleted === "Y" && row.isAdded !== "Y") {
+          // 텍스트 입력값(FLOOR_ID, SECTION 등)을 기준으로 영구 삭제
+          if (filters.FLOOR_ID && row.FLOOR_ID !== filters.FLOOR_ID) continue;
+          if (filters.SECTION && row.SECTION !== filters.SECTION) continue;
+          p_GUBUN = "D"; // 영구 삭제로 처리
+        } else if (row.isAdded === "Y") p_GUBUN = "I";
         else if (row.isChanged === "Y" && row.isDeleted === "N") p_GUBUN = "U";
 
         const params = {
@@ -1003,13 +1041,16 @@ const ReservationAdminPage = () => {
         const response = await fetchData(api, `${common.getServerUrl("reservation/layout/save")}`, params, { timeout: 30000 });
         if (!response.success) {
           errorMsgPopup(
-            `${p_GUBUN === "D" ? "삭제" : p_GUBUN === "I" ? "추가" : "수정"} 실패: ${response.errMsg || "서버 오류"} (ROOM_ID: ${row.ROOM_ID})`
+            `${p_GUBUN === "D" ? "삭제" : p_GUBUN === "I" ? "추가" : "수정"} 실패: ${response.errMsg || "서버 오류"} (ROOM_ID: ${
+              row.ROOM_ID
+            })`
           );
           continue;
         }
       }
       msgPopup("모든 변경사항이 성공적으로 저장되었습니다.");
-      await loadData(); // 저장 후 데이터 재로드
+      // 삭제된 데이터는 서버에서 영구 제거되었으므로 loadData 호출 시 갱신된 데이터만 가져옴
+      await loadData();
       setGridLayout((prev) => ({ ...prev })); // UI 갱신
     } catch (err) {
       console.error("저장 오류:", err);
@@ -1202,13 +1243,7 @@ const ReservationAdminPage = () => {
                             textAlign: "center",
                             borderRadius: "4px",
                             color: "#fff",
-                            background: isUsed
-                              ? "#888888"
-                              : isSelected
-                              ? "#90cdf4"
-                              : isOccupied
-                              ? "#e5e7eb"
-                              : "#e5e7eb",
+                            background: isUsed ? "#888888" : isSelected ? "#90cdf4" : isOccupied ? "#e5e7eb" : "#e5e7eb",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -1223,7 +1258,8 @@ const ReservationAdminPage = () => {
                       );
                     })}
                     <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#374151" }}>
-                      총 크기: {sectionLayout[selectedFloor]?.[section]?.reduce((sum, r) => sum + (roomSizeMap[r || "1인실"] || 0), 0) || 0} / 8
+                      총 크기: {sectionLayout[selectedFloor]?.[section]?.reduce((sum, r) => sum + (roomSizeMap[r || "1인실"] || 0), 0) || 0}{" "}
+                      / 8
                     </p>
                   </div>
                 ))}
@@ -1286,7 +1322,8 @@ const ReservationAdminPage = () => {
 };
 
 // 호실 유형에 따른 색상 반환
-const getRoomColor = (roomType) => { // 호실 유형별 색상 반환
+const getRoomColor = (roomType) => {
+  // 호실 유형별 색상 반환
   switch (roomType) {
     case "1인실":
       return "#3498db";

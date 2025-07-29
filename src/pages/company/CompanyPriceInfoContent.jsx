@@ -1,5 +1,14 @@
+import { useNavigate } from "react-router-dom";
+
 
 const CompanyPriceInfoContent = () => {
+ const navigate = useNavigate();
+
+const handleClickToReservation = () => {
+ 
+  navigate('/reservation/ReservationBuilding');
+}  
+
 const roomData = [
     { 구분: "1인실", 정상가: "₩300,000", "6개월(5%)": "₩1,710,000", "12개월(8%)": "₩3,240,000" },
     { 구분: "2인실", 정상가: "₩550,000", "6개월(5%)": "₩3,135,000", "12개월(8%)": "₩5,940,000" },
@@ -10,7 +19,7 @@ const roomData = [
   return (
     <div className="MainWrapper">
       <div className="BigMom">
-        <div className="MainTitle">가격 안내</div>
+        <div className="MainTitle">가격 안내<button className="btn-reservation" onClick={handleClickToReservation}>예약 페이지</button></div>
         <div className="MainContent">
           [호실별 이용료 할인 서비스]
         </div>

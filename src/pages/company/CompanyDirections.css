@@ -1,6 +1,7 @@
 .directionswrap {
   padding: 30px;
   background-color: #f9f9f9;
+  width: 924px;
 }
 
 /* 💡 flex 좌우 배치용 container */
@@ -20,6 +21,8 @@
 /* 콘텐츠 영역 스타일은 Content 컴포넌트에서 .MainWrapper 등으로 설정 */
 .MainWrapper1 {
   flex: 1;
+  display: flex;
+
 }
 
 .SideDirectionsTitle {
@@ -61,6 +64,23 @@
     font-size: 30px;
     font-weight: bold;
     margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between; /* 첫 번째 아이템은 컨테이너의 시작 부분에 붙고, 마지막 아이템은 끝 부분에 붙는다. */
+    align-items: center;
+    width: 800px;
+}
+
+.btn-directions {
+  padding: 4px 8px; /* 버튼 크기 조정 */
+  background-color: #007bff; /* 예: 파란색 배경 */
+  color: white; /* 흰색 텍스트 */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-directions:hover {
+  background-color: #0056b3; /* 호버 시 색상 변화 */
 }
 
 .SubTitle {
