@@ -29,7 +29,7 @@ const MainHome = () => {
 
   // API URL 동적 설정
   const getApiUrl = () => {
-    return window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jh9695-backend.cloudtype.app";
+    return window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jjh9695-backend.cloudtype.app";
   };
 
   useEffect(() => {
