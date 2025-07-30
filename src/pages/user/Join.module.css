@@ -17,85 +17,128 @@
   width: auto;
   height: auto;
   background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .modalDialog {
-  max-width: 900px;
+  min-width: 300px;
   width: 100%;
   margin: 0;
 }
 
 .modalContent {
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
   background: #fff;
-  padding: 10px;
+  padding: 20px;
 }
 
 .modalHeader {
   background-color: #fff;
   color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
 }
 
 .modalTitle {
-  font-size: 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0;
 }
 
 .btnClose {
   /* Bootstrap's btn-close style */
+  position: absolute;
+  right: 10px;
+  top: 10px;
 }
 
 .modalBody {
   color: #333;
-  position: relative;
-  border: 1px solid #696969;
-  margin: 10px 5px;
-  padding: 10px 10px;
-  border-radius: 5px;
-  background: #f0f0f0;
-}
-
-.modalFooter {
-  justify-content: center;
-}
-
-.btn {
-  width: 100%;
-  padding: 10px;
-  background-color: #2cbbb7; /* Match Login button color */
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.2em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px; /* Space between icon and text */
-}
-
-.btn:hover {
-  background-color: #3b9b98; /* Match Login button hover color */
-}
-
-.toast {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 10px;
-  font-size: 0.9rem;
-  z-index: 1060;
-  max-width: 300px;
+  padding: 0;
 }
 
 .formRow {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 15px;
-  align-items: center;
 }
 
 .formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.required {
+  color: red;
+}
+
+.input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.inputWithButton {
+  display: flex;
+  gap: 10px;
+}
+
+.btnCheck {
+  padding: 8px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btnCheck:hover {
+  background-color: #0056b3;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btnSubmit {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
   flex: 1;
-  min-width: 200px;
+}
+
+.btnSubmit:hover {
+  background-color: #0056b3;
+}
+
+.btnCancel {
+  padding: 10px 20px;
+  background-color: #ffc107;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.btnCancel:hover {
+  background-color: #ffca2c;
 }
