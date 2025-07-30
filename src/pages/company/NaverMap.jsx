@@ -11,8 +11,9 @@ const MapComponent = () => {
 
   // API URL 동적 설정
   const getApiUrl = () => {
-    // 로컬 환경에서는 localhost, 그렇지 않으면 서버 URL 사용
-    return window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jh9695-backend.cloudtype.app";
+    const url = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jh9695-backend.cloudtype.app";
+    console.log("Using API URL:", url);
+    return url;
   };
 
   // 백엔드에서 클라이언트 ID 가져오기
@@ -20,7 +21,9 @@ const MapComponent = () => {
     const fetchClientId = async () => {
       try {
         const apiUrl = getApiUrl();
+        console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
         const response = await axios.get(`${apiUrl}/api/naver/client-id`);
+        console.log("Response:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
         console.error("클라이언트 ID 가져오기 실패:", error);
@@ -41,6 +44,8 @@ const MapComponent = () => {
         const map = new window.naver.maps.Map(mapRef.current, {
           center: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
           zoom: 13,
+          mapTypeControl: true, // 맵 타입 컨트롤 활성화
+          mapTypeId: window.naver.maps.MapTypeId.SATELLITE, // 위성 맵 기본 설정
           draggable: true,
           pinchZoom: true,
           scrollWheel: true,
