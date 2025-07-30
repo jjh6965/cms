@@ -1,0 +1,47 @@
+.about-4-room {
+    display: flex;
+    gap: 30px;
+    max-width: 800px;
+    margin: auto;
+}
+
+.about-content {
+    flex: 1 ;
+    background-color: #fff;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.img-container-4 {
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    object-fit: cover;
+}
+
+.img-container-4 img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 5px;
+}
+
+.info-text-content-4 {
+    display: flex;
+    padding: 10px 0px;
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.info-text-content-4 h2 {
+     text-align: left;
+}
+
+.room4-details {
+    border: 1px solid #ccc;
+    padding: 10px 10px;
+}
