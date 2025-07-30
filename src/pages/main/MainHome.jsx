@@ -12,23 +12,26 @@ import "../main/MainHome.css";
 import styles from './MainHome.module.css';
 import MainInfoPage from "../main/MainInfoPage";
 import axios from "axios";
+import ImageFx1 from '../../assets/images/Image_fx1.jpg';
+import ImageFx6 from '../../assets/images/Image_fx6.jpg';
+import ImageFx11 from '../../assets/images/Image_fx11.jpg';
 
 const MainHome = () => {
   const { user, notices, fetchNotices } = useStore();
   const navigate = useNavigate();
   const canWriteBoard = user && hasPermission(user.auth, 'mainBoard');
-  const chatContainerRef = useRef(null); // 챗봇 컨테이너 참조
+  const chatContainerRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const slideImages = [
-    'src/assets/images/Image_fx1.jpg',
-    'src/assets/images/Image_fx6.jpg',
-    'src/assets/images/Image_fx11.jpg',
-  ];
+  const slideImages = [ImageFx1, ImageFx6, ImageFx11];
 
-  // 자동 스크롤: 챗봇 메시지 또는 로딩 상태 변경 시 챗봇 채팅창만 스크롤
+  // API URL 동적 설정
+  const getApiUrl = () => {
+    return window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jh9695-backend.cloudtype.app";
+  };
+
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -37,11 +40,9 @@ const MainHome = () => {
 
   useEffect(() => {
     if (!user || !hasPermission(user.auth, 'mainhome')) {
-      // navigate('/');
       return;
     }
 
-    // 챗봇 초기화: 환영 메시지
     setMessages([{ text: '안녕하세요! 무엇을 도와드릴까요?', sender: 'bot' }]);
 
     const swiperButtonPrev = document.querySelector('.swiper-button-prev');
@@ -65,9 +66,10 @@ const MainHome = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8080/api/chatbot/message', message, {
+      const apiUrl = getApiUrl();
+      const response = await axios.post(`${apiUrl}/api/chatbot/message`, message, {
         headers: { 'Content-Type': 'text/plain' },
-        withCredentials: true // JWT 쿠키 전송
+        withCredentials: true
       });
       const botResponse = response.data;
       setMessages((prev) => [...prev, { text: botResponse, sender: 'bot' }]);
@@ -117,7 +119,7 @@ const MainHome = () => {
           <div className={`w-50 p-3 border ${styles.contentRightContainer}`} style={{ backgroundColor: '#fff', color: '#000' }}>
             <h3 className={`mb-3 fs-5 ${styles.boardTitle}`} style={{ color: '#FF7F50' }}>Chatbot</h3>
             <div
-              ref={chatContainerRef} // 챗봇 컨테이너 참조
+              ref={chatContainerRef}
               className="chatbot-messages"
               style={{ 
                 height: '300px', 
