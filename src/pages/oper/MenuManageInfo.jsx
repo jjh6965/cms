@@ -86,8 +86,8 @@ const getFieldOptions = (fieldId) => {
 const MenuManageInfo = () => {
   const { user } = useStore();
   const navigate = useNavigate();
-  const today = new Date();
-  const todayDate = today.toISOString().split('T')[0];
+  //const today = new Date();
+  // const todayDate = today.toISOString().split('T')[0];
 
   const searchConfig = {
     areas: [
@@ -328,7 +328,7 @@ const MenuManageInfo = () => {
     }
   }, [tableFilters.filterSelect, tableFilters.filterText, tableStatus, loading]);
 
-  const handleDynamicEvent = (eventType, eventData) => {
+  const handleDynamicEvent = (eventType) => {
     if (eventType === 'search') {
       loadData();
     }

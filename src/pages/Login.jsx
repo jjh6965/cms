@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { performLogin } from '../service/login';
-import styles from './Login.module.css';
-import Join from '../pages/user/Join';
-import PasswordChange from '../pages/user/PasswordChange';
-import { msgPopup } from '../utils/msgPopup';
-import { errorMsgPopup } from '../utils/errorMsgPopup';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { performLogin } from "../service/login";
+import "./user/Login.css";
+import Join from "../pages/user/Join";
+import PasswordChange from "../pages/user/PasswordChange";
+import { msgPopup } from "../utils/msgPopup";
+import { errorMsgPopup } from "../utils/errorMsgPopup";
 
 const Login = () => {
-  const [empNo, setEmpNo] = useState('admin');
-  const [empPwd, setEmpPwd] = useState('new1234!');
+  const [empNo, setEmpNo] = useState("admin");
+  const [empPwd, setEmpPwd] = useState("new1234!");
   const [showJoinPopup, setShowJoinPopup] = useState(false);
   const [showPasswordChangePopup, setShowPasswordChangePopup] = useState(false);
   const [isManualPasswordChange, setIsManualPasswordChange] = useState(false);
@@ -17,11 +17,11 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const response = await performLogin('web', empNo, empPwd, navigate, (error) => {
+    const response = await performLogin("web", empNo, empPwd, navigate, (error) => {
       errorMsgPopup(error);
     });
 
-    if (response && response.data.user.pwdChgYn === 'Y') {
+    if (response && response.data.user.pwdChgYn === "Y") {
       setIsManualPasswordChange(false);
       msgPopup("기간이 만료되어 비밀번호를 변경해야 합니다.");
       setShowPasswordChangePopup(true);
@@ -29,7 +29,7 @@ const Login = () => {
   };
 
   const handleMobileLoginRedirect = () => {
-    navigate('/mobile/Login');
+    navigate("/mobile/Login");
   };
 
   const handleJoinClick = () => {
@@ -42,71 +42,65 @@ const Login = () => {
   };
 
   return (
-    <div className={styles.loginContainer}>
-      <h1 className={styles.title}>
-        Login
-      </h1>
+    <div className="login-form-container">
+      <h1>로그인</h1>
       <form onSubmit={handleLogin}>
-        <div className={styles.formGroup}>
-          <label htmlFor="userid" className={styles.label}>
-            <i className="bi bi-person"></i> 아이디
-          </label>
-          <input
-            id="userid"
-            type="text"
-            value={empNo}
-            onChange={(e) => setEmpNo(e.target.value)}
-            placeholder="아이디를 입력하세요"
-            required
-            className={styles.input}
-          />
+        <div className="login-form-group-container">
+          <div className="login-form-group">
+            <label htmlFor="empNo">아이디</label>
+            <input
+              id="empNo"
+              type="text"
+              name="empNo"
+              placeholder="아이디를 입력하세요"
+              value={empNo}
+              onChange={(e) => setEmpNo(e.target.value)}
+              required
+            />
+          </div>
+          <div className="login-form-group">
+            <label htmlFor="empPwd">비밀번호</label>
+            <input
+              id="empPwd"
+              type="password"
+              name="empPwd"
+              placeholder="비밀번호를 입력하세요"
+              value={empPwd}
+              onChange={(e) => setEmpPwd(e.target.value)}
+              required
+            />
+          </div>
+          <div className="login-btn-group">
+            <div className="login-btn-row1">
+            <div className="login-btn-login">
+              <button type="submit">로그인</button>
+            </div>
+            <div className="login-btn-signup">
+              <button type="button" onClick={handleJoinClick}>
+                회원가입
+              </button>
+            </div>
+            </div>
+            <div className="login-btn-row2">
+            <div className="login-btn-pwc">
+              <button type="button" onClick={handlePasswordChangeClick}>
+                비밀번호 변경
+              </button>
+            </div>
+            <div className="login-btn-pwc">
+              <button type="button" onClick={handleMobileLoginRedirect}>
+                모바일로그인으로 이동
+              </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className={styles.formGroup}>
-          <label htmlFor="password" className={styles.label}>
-            <i className="bi bi-lock"></i> 비밀번호
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={empPwd}
-            onChange={(e) => setEmpPwd(e.target.value)}
-            placeholder="비밀번호를 입력하세요"
-            required
-            className={styles.input}
-          />
-        </div>
-        <div className={styles.buttonGroup}>
-          <button type="submit" className={styles.loginButton}>
-            <i className="bi bi-box-arrow-in-right"></i> 로그인
-          </button>
-          <button 
-            type="button" 
-            className={styles.smallButton}
-            onClick={handleJoinClick}
-          >
-            <i className="bi bi-person-plus"></i>
-          </button>
-          <button 
-            type="button" 
-            className={styles.smallButton}
-            onClick={handlePasswordChangeClick}
-          >
-            <i className="bi bi-key"></i>
-          </button>
-        </div>
-        <button 
-          type="button" 
-          className={styles.button}
-          onClick={handleMobileLoginRedirect}
-        >
-          <i className="bi bi-phone"></i> 모바일로그인으로 이동
-        </button>
       </form>
       <Join show={showJoinPopup} onHide={() => setShowJoinPopup(false)} />
-      <PasswordChange 
-        show={showPasswordChangePopup} 
-        onHide={() => setShowPasswordChangePopup(false)} 
-        initialEmpNo={empNo} 
+      <PasswordChange
+        show={showPasswordChangePopup}
+        onHide={() => setShowPasswordChangePopup(false)}
+        initialEmpNo={empNo}
         isEditable={isManualPasswordChange}
       />
     </div>

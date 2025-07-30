@@ -1,16 +1,16 @@
-import React, { useEffect, useState, Suspense } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import MainHeader from './MainHeader';
-import MainTopNav from './MainTopNav';
-import MainTopNavLoc from './MainTopNavLoc';
-import MainFooter from './MainFooter';
-import useStore from '../../store/store';
-import { fetchData } from '../../utils/dataUtils';
+import React, { useEffect, useState, Suspense } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import MainTopBar from "./MainTopBar.jsx";
+import MainTopNavLoc from "./MainTopNavLoc";
+import MainFooter from "./MainFooter";
+import useStore from "../../store/store";
+import { fetchData } from "../../utils/dataUtils";
 import { hasPermission, checkTokenValiditySimple } from '../../utils/authUtils';
-import common from '../../utils/common';
-import api from '../../utils/api.js';
-import styles from './MainLayout.module.css';
-import logo from '../../assets/images/logo.png';
+import common from "../../utils/common";
+import api from "../../utils/api.js";
+import "../main/MainLayout.css";
+import styles from "./MainLayout.module.css";
+import logo from "../../assets/images/logo.png";
 
 const MainLayout = () => {
   const navigate = useNavigate();
@@ -119,33 +119,28 @@ const MainLayout = () => {
     };
   }, [navigate, user, clearUser]);
 
-  if (isChecking || !user) {
+  // 로딩 중일 때 출력
+  if (isChecking) {
     return <div>Loading...</div>;
   }
 
   return (
     <div>
       <header id="header" className={styles.header}>
-        <div className={styles.logo} onClick={handleLogoClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleLogoClick(e)}>
-          <img src={logo} alt="Logo" className={styles.logoImage} />
-        </div>
-        <div className={styles.headerNavGroup}>
-          <MainHeader />
-          <div className={styles.headerNav}>
-            <nav className={styles.nav}>
-              <MainTopNav />
-            </nav>
-          </div>
-        </div>
+        <img src={logo} alt="Logo" className="mainlogo" onClick={() => navigate("/")} />
+        <MainTopBar />
       </header>
+
       <div>
         <MainTopNavLoc />
       </div>
+
       <section className={styles.main}>
         <Suspense fallback={<div>Loading...</div>}>
           <Outlet />
         </Suspense>
       </section>
+
       <footer id="footer">
         <MainFooter />
       </footer>
