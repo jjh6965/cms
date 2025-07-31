@@ -29,7 +29,7 @@ const MainHome = () => {
 
   // API URL 동적 설정
   const getApiUrl = () => {
-    return window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jjh9695-backend.cloudtype.app";
+    return import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app");
   };
 
   useEffect(() => {
@@ -67,6 +67,7 @@ const MainHome = () => {
 
     try {
       const apiUrl = getApiUrl();
+      console.log("Sending to:", `${apiUrl}/api/chatbot/message`);
       const response = await axios.post(`${apiUrl}/api/chatbot/message`, message, {
         headers: { 'Content-Type': 'text/plain' },
         withCredentials: true
@@ -78,6 +79,8 @@ const MainHome = () => {
       let errorMessage = '죄송합니다. 서버와 통신 중 문제가 발생했습니다.';
       if (error.response?.status === 401) {
         errorMessage = '로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?';
+      } else if (error.response?.status === 404) {
+        errorMessage = '서버에서 챗봇 기능을 찾을 수 없습니다. 관리자에게 문의하세요.';
       }
       setMessages((prev) => [...prev, { text: errorMessage, sender: 'bot' }]);
     }
