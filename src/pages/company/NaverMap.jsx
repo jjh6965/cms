@@ -1,27 +1,24 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 const MapComponent = () => {
   const mapRef = useRef(null);
   const [clientId, setClientId] = useState(null);
-  // 하드코딩된 좌표
-  // 연세IT미래교육원 장안문 캠퍼스
-  const fixedLatitude = 37.291614;
+  const fixedLatitude = 37.291614; // 연세IT미래교육원 장안문 캠퍼스
   const fixedLongitude = 127.012637;
 
-  // API URL 동적 설정
   const getApiUrl = () => {
-    return import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app");
+    return "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app"; // 고정 URL 사용
   };
 
-  // 백엔드에서 클라이언트 ID 가져오기
   useEffect(() => {
     const fetchClientId = async () => {
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
-        const response = await axios.get(`${apiUrl}/api/naver/client-id`, { withCredentials: true });
+        const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
+          headers: { "Content-Type": "application/json" }, // withCredentials 제거
+        });
         console.log("Response:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
@@ -31,12 +28,11 @@ const MapComponent = () => {
     fetchClientId();
   }, []);
 
-  // 네이버 지도 API 스크립트 동적 로드 및 지도 초기화
   useEffect(() => {
     if (!clientId) return;
 
     const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`; // ncpKeyId -> ncpClientId로 수정
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
     script.async = true;
     script.onload = () => {
       if (window.naver && window.naver.maps) {
