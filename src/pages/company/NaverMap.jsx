@@ -8,7 +8,7 @@ const MapComponent = () => {
   const fixedLongitude = 127.012637;
 
   const getApiUrl = () => {
-    return "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app"; // 고정 URL 사용
+    return "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app";
   };
 
   useEffect(() => {
@@ -22,8 +22,6 @@ const MapComponent = () => {
         console.log("Received response:", response.data);
         if (response.data && response.data.clientId) {
           setClientId(response.data.clientId);
-        } else {
-          console.error("Invalid clientId data received:", response.data);
         }
       } catch (error) {
         console.error("Failed to fetch clientId:", error.message);
@@ -41,10 +39,24 @@ const MapComponent = () => {
       return;
     }
 
+    // 인증 실패 핸들러 정의
+    window.navermap_authFailure = function () {
+      console.error("Naver Maps API authentication failed.");
+    };
+
     const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&callback=initMap`;
     script.async = true;
     script.onload = () => {
+      console.log("Map script loaded successfully.");
+    };
+    script.onerror = () => {
+      console.error("Failed to load Naver Maps API script.");
+    };
+    document.head.appendChild(script);
+
+    // 지도 초기화 콜백 함수
+    window.initMap = () => {
       if (window.naver && window.naver.maps) {
         const map = new window.naver.maps.Map(mapRef.current, {
           center: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
@@ -55,7 +67,6 @@ const MapComponent = () => {
           pinchZoom: true,
           scrollWheel: true,
         });
-
         new window.naver.maps.Marker({
           position: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
           map: map,
@@ -65,13 +76,11 @@ const MapComponent = () => {
         console.error("Naver Maps API failed to initialize.");
       }
     };
-    script.onerror = () => {
-      console.error("Failed to load Naver Maps API script.");
-    };
-    document.head.appendChild(script);
 
     return () => {
       document.head.removeChild(script);
+      delete window.navermap_authFailure;
+      delete window.initMap;
     };
   }, [clientId]);
 
