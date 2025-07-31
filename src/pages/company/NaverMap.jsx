@@ -3,7 +3,7 @@ import axios from "axios";
 
 const MapComponent = () => {
   const mapRef = useRef(null);
-  const [clientId, setClientId] = useState(null);
+  const [clientId, setClientId] = useState("");
   const fixedLatitude = 37.291614; // 연세IT미래교육원 장안문 캠퍼스
   const fixedLongitude = 127.012637;
 
