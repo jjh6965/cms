@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
@@ -11,9 +12,7 @@ const MapComponent = () => {
 
   // API URL 동적 설정
   const getApiUrl = () => {
-    const url = window.location.hostname === "localhost" ? "http://localhost:8080" : "https://jh9695-backend.cloudtype.app";
-    console.log("Using API URL:", url);
-    return url;
+    return import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app");
   };
 
   // 백엔드에서 클라이언트 ID 가져오기
@@ -22,7 +21,7 @@ const MapComponent = () => {
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
-        const response = await axios.get(`${apiUrl}/api/naver/client-id`);
+        const response = await axios.get(`${apiUrl}/api/naver/client-id`, { withCredentials: true });
         console.log("Response:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
@@ -37,15 +36,15 @@ const MapComponent = () => {
     if (!clientId) return;
 
     const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`; // ncpKeyId -> ncpClientId로 수정
     script.async = true;
     script.onload = () => {
       if (window.naver && window.naver.maps) {
         const map = new window.naver.maps.Map(mapRef.current, {
           center: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
           zoom: 13,
-          mapTypeControl: true, // 맵 타입 컨트롤 활성화
-          mapTypeId: window.naver.maps.MapTypeId.SATELLITE, // 위성 맵 기본 설정
+          mapTypeControl: true,
+          mapTypeId: window.naver.maps.MapTypeId.SATELLITE,
           draggable: true,
           pinchZoom: true,
           scrollWheel: true,
