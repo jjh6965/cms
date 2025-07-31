@@ -15,21 +15,31 @@ const MapComponent = () => {
     const fetchClientId = async () => {
       try {
         const apiUrl = getApiUrl();
-        console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
+        console.log("Fetching clientId from:", `${apiUrl}/api/naver/client-id`);
         const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
-          headers: { "Content-Type": "application/json" }, // withCredentials 제거
+          headers: { "Content-Type": "application/json" },
         });
-        console.log("Response:", response.data);
-        setClientId(response.data.clientId);
+        console.log("Received response:", response.data);
+        if (response.data && response.data.clientId) {
+          setClientId(response.data.clientId);
+        } else {
+          console.error("Invalid clientId data received:", response.data);
+        }
       } catch (error) {
-        console.error("클라이언트 ID 가져오기 실패:", error);
+        console.error("Failed to fetch clientId:", error.message);
+        if (error.response) {
+          console.error("Server response:", error.response.data);
+        }
       }
     };
     fetchClientId();
   }, []);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || clientId.trim() === "") {
+      console.warn("Client ID is missing or invalid, map will not load.");
+      return;
+    }
 
     const script = document.createElement("script");
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
@@ -51,9 +61,13 @@ const MapComponent = () => {
           map: map,
           draggable: false,
         });
+      } else {
+        console.error("Naver Maps API failed to initialize.");
       }
     };
-    script.onerror = () => console.error("네이버 지도 API 로드 실패");
+    script.onerror = () => {
+      console.error("Failed to load Naver Maps API script.");
+    };
     document.head.appendChild(script);
 
     return () => {
