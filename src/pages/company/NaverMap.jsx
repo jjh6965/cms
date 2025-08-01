@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
@@ -12,7 +11,12 @@ const MapComponent = () => {
 
   // API URL 동적 설정
   const getApiUrl = () => {
-    return import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" ? "http://localhost:8080" : "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app");
+    return (
+      import.meta.env.VITE_API_URL ||
+      (window.location.hostname === "localhost"
+        ? "http://localhost:8080"
+        : "https://port-0-java-springboot-mbebujvsfb073e29.sel4.cloudtype.app")
+    );
   };
 
   // 백엔드에서 클라이언트 ID 가져오기
@@ -22,10 +26,10 @@ const MapComponent = () => {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
         const response = await axios.get(`${apiUrl}/api/naver/client-id`, { withCredentials: true });
-        console.log("Response:", response.data);
+        console.log("Response data:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
-        console.error("클라이언트 ID 가져오기 실패:", error);
+        console.error("클라이언트 ID 가져오기 실패:", error.response ? error.response.status : error.message);
       }
     };
     fetchClientId();
