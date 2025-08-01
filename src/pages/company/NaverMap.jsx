@@ -25,7 +25,10 @@ const MapComponent = () => {
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
-        const response = await axios.get(`${apiUrl}/api/naver/client-id`, { withCredentials: true });
+        const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${yourJwtToken}` },
+        });
         console.log("Response data:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
