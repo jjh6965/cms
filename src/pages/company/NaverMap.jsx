@@ -4,6 +4,7 @@ import axios from "axios";
 const MapComponent = () => {
   const mapRef = useRef(null);
   const [clientId, setClientId] = useState(null);
+  const [loading, setLoading] = useState(true); // 로딩 상태 추가
   // 하드코딩된 좌표
   // 연세IT미래교육원 장안문 캠퍼스
   const fixedLatitude = 37.291614;
@@ -22,15 +23,24 @@ const MapComponent = () => {
   // 백엔드에서 클라이언트 ID 가져오기
   useEffect(() => {
     const fetchClientId = async () => {
+      setLoading(true); // 로딩 시작
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
-        // withCredentials 제거, 토큰 임시 비활성화 (서버가 인증 없이 허용하도록 설정됨)
-        const response = await axios.get(`${apiUrl}/api/naver/client-id`);
+        const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
+          withCredentials: true, // 인증 시도 유지
+        });
         console.log("Response data:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
         console.error("클라이언트 ID 가져오기 실패:", error.response ? error.response.status : error.message);
+        // 401 시 임시 대안: 하드코딩된 clientId 사용 (디버깅용)
+        if (error.response && error.response.status === 401) {
+          console.warn("401 발생, 임시 clientId 사용: 1wnkkjylie");
+          setClientId("1wnkkjylie"); // application.properties 값
+        }
+      } finally {
+        setLoading(false); // 로딩 종료
       }
     };
     fetchClientId();
@@ -38,7 +48,7 @@ const MapComponent = () => {
 
   // 네이버 지도 API 스크립트 동적 로드 및 지도 초기화
   useEffect(() => {
-    if (!clientId) return;
+    if (loading || !clientId) return;
 
     const script = document.createElement("script");
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`; // ncpKeyId -> ncpClientId로 수정
@@ -68,9 +78,13 @@ const MapComponent = () => {
     return () => {
       document.head.removeChild(script);
     };
-  }, [clientId]);
+  }, [clientId, loading]);
 
-  return <div ref={mapRef} style={{ width: "100%", height: "500px" }} />;
+  return (
+    <div>
+      {loading ? <p>로드 중...</p> : <div ref={mapRef} style={{ width: "100%", height: "500px" }} />}
+    </div>
+  );
 };
 
 export default MapComponent;
