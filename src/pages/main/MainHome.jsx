@@ -68,8 +68,8 @@ const MainHome = () => {
     try {
       const apiUrl = getApiUrl();
       console.log("Sending to:", `${apiUrl}/api/chatbot/message`);
-      const response = await axios.post(`${apiUrl}/api/chatbot/message`, message, {
-        headers: { 'Content-Type': 'text/plain' },
+      const response = await axios.post(`${apiUrl}/api/chatbot/message`, { message }, {
+        headers: { 'Content-Type': 'application/json' },
         withCredentials: true
       });
       const botResponse = response.data;
@@ -81,6 +81,8 @@ const MainHome = () => {
         errorMessage = '로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?';
       } else if (error.response?.status === 404) {
         errorMessage = '서버에서 챗봇 기능을 찾을 수 없습니다. 관리자에게 문의하세요.';
+      } else if (error.response?.status === 500) {
+        errorMessage = '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
       }
       setMessages((prev) => [...prev, { text: errorMessage, sender: 'bot' }]);
     }
