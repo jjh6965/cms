@@ -5,7 +5,6 @@ const MapComponent = () => {
   const mapRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const fixedLatitude = 37.291614;
   const fixedLongitude = 127.012637;
 
@@ -24,12 +23,8 @@ const MapComponent = () => {
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
-        const token = localStorage.getItem("token"); // JWT 토큰 가져오기
         const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
           withCredentials: true,
-          headers: {
-            Authorization: token ? `Bearer ${token}` : undefined, // 토큰이 있으면 추가
-          },
         });
         console.log("Response data:", response.data);
         setClientId(response.data.clientId);
@@ -41,10 +36,7 @@ const MapComponent = () => {
         );
         if (error.response && error.response.status === 401) {
           console.warn("401 발생, 서버 인증 문제 확인 필요");
-          setError("인증이 필요합니다. 로그인 후 다시 시도해주세요.");
-          // 임시 clientId 제거, 대신 오류 표시
-        } else {
-          setError("클라이언트 ID를 가져오지 못했습니다.");
+          setClientId("o2rbo106py"); // 새로 발급받은 client-id 사용
         }
       } finally {
         setLoading(false);
@@ -92,23 +84,13 @@ const MapComponent = () => {
     };
   }, [clientId, loading]);
 
+  // 인증 실패 처리
   window.navermap_authFailure = function () {
     console.error("네이버 지도 API 인증 실패");
-    setLoading(false);
-    setError("네이버 지도 API 인증 실패");
+    setLoading(false); // 로딩 상태 해제
   };
 
-  return (
-    <div>
-      {loading ? (
-        <p>로드 중...</p>
-      ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
-      ) : (
-        <div ref={mapRef} style={{ width: "100%", height: "500px" }} />
-      )}
-    </div>
-  );
+  return <div>{loading ? <p>로드 중...</p> : <div ref={mapRef} style={{ width: "100%", height: "500px" }} />}</div>;
 };
 
 export default MapComponent;
