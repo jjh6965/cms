@@ -35,8 +35,8 @@ const MapComponent = () => {
           error.response ? error.response.data : {}
         );
         if (error.response && error.response.status === 401) {
-          console.warn("401 발생, 신규 ncpKeyId를 사용하세요");
-          setClientId("<신규_ncpKeyId>"); // 발급받은 신규 ncpKeyId로 교체
+          console.warn("401 발생, ncpKeyId 확인 필요");
+          setClientId("o2rbo106py"); // 새로 발급받은 client-id 사용
         }
       } finally {
         setLoading(false);
