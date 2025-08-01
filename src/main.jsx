@@ -29,7 +29,7 @@ const Main = () => {
       const globalLink = document.createElement('link');
       globalLink.id = 'global-css';
       globalLink.rel = 'stylesheet';
-      globalLink.href = '/cms/assets/css/global.css'; //절대 경로 변경
+      globalLink.href = './assets/css/global.css'; 
       document.head.appendChild(globalLink);
 
       // globalMobile.css 제거
