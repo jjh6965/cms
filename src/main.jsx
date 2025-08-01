@@ -30,7 +30,7 @@ const Main = () => {
       globalLink.id = 'global-css';
       globalLink.rel = 'stylesheet';
       globalLink.href = '/assets/css/global.css'; 
-      document.head.appendChild(globalLink);
+      // document.head.appendChild(globalLink);
 
       // globalMobile.css 제거
       if (cssLink) cssLink.remove();
