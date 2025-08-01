@@ -28,7 +28,7 @@ const MapComponent = () => {
         const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
           withCredentials: true,
           headers: {
-            Authorization: token ? `Bearer ${token}` : undefined, // 토큰 포함
+            Authorization: token ? `Bearer ${token}` : undefined, // 토큰이 있으면 추가
           },
         });
         console.log("Response data:", response.data);
@@ -42,6 +42,7 @@ const MapComponent = () => {
         if (error.response && error.response.status === 401) {
           console.warn("401 발생, 서버 인증 문제 확인 필요");
           setError("인증이 필요합니다. 로그인 후 다시 시도해주세요.");
+          // 임시 clientId 제거, 대신 오류 표시
         } else {
           setError("클라이언트 ID를 가져오지 못했습니다.");
         }
