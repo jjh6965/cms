@@ -25,10 +25,8 @@ const MapComponent = () => {
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
-        const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${yourJwtToken}` },
-        });
+        // withCredentials 제거, 토큰 임시 비활성화 (서버가 인증 없이 허용하도록 설정됨)
+        const response = await axios.get(`${apiUrl}/api/naver/client-id`);
         console.log("Response data:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
