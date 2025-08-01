@@ -4,13 +4,10 @@ import axios from "axios";
 const MapComponent = () => {
   const mapRef = useRef(null);
   const [clientId, setClientId] = useState(null);
-  const [loading, setLoading] = useState(true); // 로딩 상태 추가
-  // 하드코딩된 좌표
-  // 연세IT미래교육원 장안문 캠퍼스
+  const [loading, setLoading] = useState(true);
   const fixedLatitude = 37.291614;
   const fixedLongitude = 127.012637;
 
-  // API URL 동적 설정
   const getApiUrl = () => {
     return (
       import.meta.env.VITE_API_URL ||
@@ -20,56 +17,62 @@ const MapComponent = () => {
     );
   };
 
-  // 백엔드에서 클라이언트 ID 가져오기
   useEffect(() => {
     const fetchClientId = async () => {
-      setLoading(true); // 로딩 시작
+      setLoading(true);
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
         const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
-          withCredentials: true, // 인증 시도 유지
+          withCredentials: true,
         });
         console.log("Response data:", response.data);
         setClientId(response.data.clientId);
       } catch (error) {
-        console.error("클라이언트 ID 가져오기 실패:", error.response ? error.response.status : error.message);
-        // 401 시 임시 대안: 하드코딩된 clientId 사용 (디버깅용)
+        console.error(
+          "클라이언트 ID 가져오기 실패:",
+          error.response ? error.response.status : error.message,
+          error.response ? error.response.data : {}
+        );
         if (error.response && error.response.status === 401) {
-          console.warn("401 발생, 임시 clientId 사용: 1wnkkjylie");
-          setClientId("1wnkkjylie"); // application.properties 값
+          console.warn("401 발생, 신규 ncpKeyId를 사용하세요");
+          setClientId("<신규_ncpKeyId>"); // 발급받은 신규 ncpKeyId로 교체
         }
       } finally {
-        setLoading(false); // 로딩 종료
+        setLoading(false);
       }
     };
     fetchClientId();
   }, []);
 
-  // 네이버 지도 API 스크립트 동적 로드 및 지도 초기화
   useEffect(() => {
     if (loading || !clientId) return;
 
     const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`; // ncpKeyId -> ncpClientId로 수정
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&callback=initMap`;
     script.async = true;
     script.onload = () => {
       if (window.naver && window.naver.maps) {
-        const map = new window.naver.maps.Map(mapRef.current, {
-          center: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
-          zoom: 13,
-          mapTypeControl: true,
-          mapTypeId: window.naver.maps.MapTypeId.SATELLITE,
-          draggable: true,
-          pinchZoom: true,
-          scrollWheel: true,
-        });
+        window.initMap = () => {
+          const map = new window.naver.maps.Map(mapRef.current, {
+            center: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
+            zoom: 13,
+            mapTypeControl: true,
+            mapTypeId: window.naver.maps.MapTypeId.SATELLITE,
+            draggable: true,
+            pinchZoom: true,
+            scrollWheel: true,
+          });
 
-        new window.naver.maps.Marker({
-          position: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
-          map: map,
-          draggable: false,
-        });
+          new window.naver.maps.Marker({
+            position: new window.naver.maps.LatLng(fixedLatitude, fixedLongitude),
+            map: map,
+            draggable: false,
+          });
+        };
+        window.initMap();
+      } else {
+        console.error("네이버 지도 API 로드 실패 - window.naver 또는 naver.maps가 정의되지 않음");
       }
     };
     script.onerror = () => console.error("네이버 지도 API 로드 실패");
@@ -77,14 +80,17 @@ const MapComponent = () => {
 
     return () => {
       document.head.removeChild(script);
+      delete window.initMap;
     };
   }, [clientId, loading]);
 
-  return (
-    <div>
-      {loading ? <p>로드 중...</p> : <div ref={mapRef} style={{ width: "100%", height: "500px" }} />}
-    </div>
-  );
+  // 인증 실패 처리
+  window.navermap_authFailure = function () {
+    console.error("네이버 지도 API 인증 실패");
+    setLoading(false); // 로딩 상태 해제
+  };
+
+  return <div>{loading ? <p>로드 중...</p> : <div ref={mapRef} style={{ width: "100%", height: "500px" }} />}</div>;
 };
 
 export default MapComponent;
