@@ -23,7 +23,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      sourcemap: true,
+      // sourcemap: true,
+      sourcemap: mode === 'development' ? true : false, // 프로덕션에서 비활성화
     },
   };
 });
