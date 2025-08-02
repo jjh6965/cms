@@ -25,7 +25,6 @@ const MapComponent = () => {
         console.log("Fetching from:", `${apiUrl}/api/naver/client-id`);
         const response = await axios.get(`${apiUrl}/api/naver/client-id`, {
           withCredentials: true,
-          timeout: 15000, // 15초 타임아웃
         });
         console.log("Response data:", response.data);
         setClientId(response.data.clientId);
@@ -36,10 +35,8 @@ const MapComponent = () => {
           error.response ? error.response.data : {}
         );
         if (error.response && error.response.status === 401) {
-          setClientId("o2rbo106py"); // 임시 방편
-        } else if (error.code === "ECONNABORTED") {
-          console.error("Request timed out, retrying...");
-          setTimeout(fetchClientId, 2000); // 2초 후 재시도
+          //console.warn("401 발생, 서버 인증 문제 확인 필요");
+          setClientId("o2rbo106py"); // 새로 발급받은 client-id 사용
         }
       } finally {
         setLoading(false);
