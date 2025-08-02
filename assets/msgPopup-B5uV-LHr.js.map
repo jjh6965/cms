@@ -1,0 +1,1 @@
+{"version":3,"file":"msgPopup-B5uV-LHr.js","sources":["../../src/utils/msgPopup.js"],"sourcesContent":["import { popupEmitter } from './eventEmitter';\n\nexport const msgPopup = (message) => {\n  popupEmitter.emit('showMsgPopup', message);\n};"],"names":["msgPopup","message","popupEmitter"],"mappings":"wCAEY,MAACA,EAAYC,GAAY,CACnCC,EAAa,KAAK,eAAgBD,CAAO,CAC3C"}

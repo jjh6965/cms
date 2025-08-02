@@ -1,0 +1,2 @@
+import{j as r}from"./index-NQW_x_Sn.js";import i from"./CompanyDirectionsContent-CKGmcgst.js";import o from"./Share-CW4kTIrh.js";import"./NaverMap-B1tf8CCT.js";/* empty css              */const m=()=>r.jsxs("div",{className:"directionswrap",children:[r.jsx(o,{paths:[{label:"소개"},{label:"오시는 길"}]}),r.jsx("div",{className:"directions-inner",children:r.jsx(i,{})})]});export{m as default};
+//# sourceMappingURL=CompanyDirections-BwzUVJuq.js.map
