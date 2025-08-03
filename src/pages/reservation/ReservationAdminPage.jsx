@@ -990,6 +990,7 @@ const ReservationAdminPage = () => {
   };
 
   const handleSaveLayout = async (e) => {
+    // 레이아웃 저장 처리
     e.preventDefault();
     const changedRows = data.filter(
       (row) => (row.isDeleted === "Y" && row.isAdded !== "Y") || row.isAdded === "Y" || (row.isChanged === "Y" && row.isDeleted === "N")
@@ -1015,12 +1016,13 @@ const ReservationAdminPage = () => {
 
     setLoading(true);
     try {
-      const saveRequests = changedRows.map((row) => {
+      for (const row of changedRows) {
         let p_GUBUN = "";
         if (row.isDeleted === "Y" && row.isAdded !== "Y") {
-          if (filters.FLOOR_ID && row.FLOOR_ID !== filters.FLOOR_ID) return Promise.resolve();
-          if (filters.SECTION && row.SECTION !== filters.SECTION) return Promise.resolve();
-          p_GUBUN = "D";
+          // 텍스트 입력값(FLOOR_ID, SECTION 등)을 기준으로 영구 삭제
+          if (filters.FLOOR_ID && row.FLOOR_ID !== filters.FLOOR_ID) continue;
+          if (filters.SECTION && row.SECTION !== filters.SECTION) continue;
+          p_GUBUN = "D"; // 영구 삭제로 처리
         } else if (row.isAdded === "Y") p_GUBUN = "I";
         else if (row.isChanged === "Y" && row.isDeleted === "N") p_GUBUN = "U";
 
@@ -1036,27 +1038,20 @@ const ReservationAdminPage = () => {
           p_DEBUG: "F",
         };
 
-        return fetchData(api, `${common.getServerUrl("reservation/layout/save")}`, params, { timeout: 60000 });
-      });
-
-      const responses = await Promise.all(saveRequests);
-
-      const failedResponses = responses.filter((response) => !response.success);
-      if (failedResponses.length > 0) {
-        failedResponses.forEach((response, index) => {
-          const row = changedRows[index];
+        const response = await fetchData(api, `${common.getServerUrl("reservation/layout/save")}`, params, { timeout: 30000 });
+        if (!response.success) {
           errorMsgPopup(
-            `${response.p_GUBUN === "D" ? "삭제" : response.p_GUBUN === "I" ? "추가" : "수정"} 실패: ${
-              response.errMsg || "서버 오류"
-            } (ROOM_ID: ${row.ROOM_ID})`
+            `${p_GUBUN === "D" ? "삭제" : p_GUBUN === "I" ? "추가" : "수정"} 실패: ${response.errMsg || "서버 오류"} (ROOM_ID: ${
+              row.ROOM_ID
+            })`
           );
-        });
-      } else {
-        msgPopup("모든 변경사항이 성공적으로 저장되었습니다.");
+          continue;
+        }
       }
-
+      msgPopup("모든 변경사항이 성공적으로 저장되었습니다.");
+      // 삭제된 데이터는 서버에서 영구 제거되었으므로 loadData 호출 시 갱신된 데이터만 가져옴
       await loadData();
-      setGridLayout((prev) => ({ ...prev }));
+      setGridLayout((prev) => ({ ...prev })); // UI 갱신
     } catch (err) {
       console.error("저장 오류:", err);
       errorMsgPopup("레이아웃 저장 중 오류가 발생했습니다: " + (err.message || "서버 응답 없음"));
