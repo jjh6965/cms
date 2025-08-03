@@ -1,0 +1,1 @@
+{"version":3,"file":"test2-C8qMS0gK.js","sources":["../../src/pages/main/test2.jsx"],"sourcesContent":["import React from 'react';\n\nconst Test2 = () => {\n  return <div>Test2 Page</div>;\n};\n\nexport default Test2;"],"names":["Test2","jsx"],"mappings":"wCAEA,MAAMA,EAAQ,IACLC,EAAAA,IAAC,OAAI,SAAA,YAAA,CAAU"}
