@@ -203,6 +203,7 @@ const ReservationAdminPage = () => {
   const [selectedFloor, setSelectedFloor] = useState(""); // 선택된 층
   const [sectionLayout, setSectionLayout] = useState({}); // 섹션 레이아웃 상태
   const [gridLayout, setGridLayout] = useState({}); // 그리드 레이아웃 상태
+  const [loadingMessage, setLoadingMessage] = useState("저장 중..."); // 저장 진행 상황 메시지
   const tableRef = useRef(null); // 테이블 참조
   const tableInstance = useRef(null); // 테이블 인스턴스 참조
   const isInitialRender = useRef(true); // 초기 렌더링 플래그
@@ -990,7 +991,6 @@ const ReservationAdminPage = () => {
   };
 
   const handleSaveLayout = async (e) => {
-    // 레이아웃 저장 처리
     e.preventDefault();
     const changedRows = data.filter(
       (row) => (row.isDeleted === "Y" && row.isAdded !== "Y") || row.isAdded === "Y" || (row.isChanged === "Y" && row.isDeleted === "N")
@@ -1015,14 +1015,14 @@ const ReservationAdminPage = () => {
     }
 
     setLoading(true);
+    setLoadingMessage(`저장 중... (${changedRows.length}개 항목 처리)`); // [수정] 진행 상황 피드백 추가
     try {
-      for (const row of changedRows) {
+      const saveRequests = changedRows.map((row) => {
         let p_GUBUN = "";
         if (row.isDeleted === "Y" && row.isAdded !== "Y") {
-          // 텍스트 입력값(FLOOR_ID, SECTION 등)을 기준으로 영구 삭제
-          if (filters.FLOOR_ID && row.FLOOR_ID !== filters.FLOOR_ID) continue;
-          if (filters.SECTION && row.SECTION !== filters.SECTION) continue;
-          p_GUBUN = "D"; // 영구 삭제로 처리
+          if (filters.FLOOR_ID && row.FLOOR_ID !== filters.FLOOR_ID) return Promise.resolve();
+          if (filters.SECTION && row.SECTION !== filters.SECTION) return Promise.resolve();
+          p_GUBUN = "D";
         } else if (row.isAdded === "Y") p_GUBUN = "I";
         else if (row.isChanged === "Y" && row.isDeleted === "N") p_GUBUN = "U";
 
@@ -1038,20 +1038,27 @@ const ReservationAdminPage = () => {
           p_DEBUG: "F",
         };
 
-        const response = await fetchData(api, `${common.getServerUrl("reservation/layout/save")}`, params, { timeout: 30000 });
-        if (!response.success) {
+        return fetchData(api, `${common.getServerUrl("reservation/layout/save")}`, params, { timeout: 60000 }); // [수정] 타임아웃 60초로 증가
+      });
+
+      const responses = await Promise.all(saveRequests); // [수정] 병렬 처리 적용
+
+      const failedResponses = responses.filter((response) => !response.success);
+      if (failedResponses.length > 0) {
+        failedResponses.forEach((response, index) => {
+          const row = changedRows[index];
           errorMsgPopup(
-            `${p_GUBUN === "D" ? "삭제" : p_GUBUN === "I" ? "추가" : "수정"} 실패: ${response.errMsg || "서버 오류"} (ROOM_ID: ${
-              row.ROOM_ID
-            })`
+            `${response.p_GUBUN === "D" ? "삭제" : response.p_GUBUN === "I" ? "추가" : "수정"} 실패: ${
+              response.errMsg || "서버 오류"
+            } (ROOM_ID: ${row.ROOM_ID})`
           );
-          continue;
-        }
+        });
+      } else {
+        msgPopup("모든 변경사항이 성공적으로 저장되었습니다.");
       }
-      msgPopup("모든 변경사항이 성공적으로 저장되었습니다.");
-      // 삭제된 데이터는 서버에서 영구 제거되었으므로 loadData 호출 시 갱신된 데이터만 가져옴
+
       await loadData();
-      setGridLayout((prev) => ({ ...prev })); // UI 갱신
+      setGridLayout((prev) => ({ ...prev }));
     } catch (err) {
       console.error("저장 오류:", err);
       errorMsgPopup("레이아웃 저장 중 오류가 발생했습니다: " + (err.message || "서버 응답 없음"));
@@ -1082,7 +1089,7 @@ const ReservationAdminPage = () => {
       </TableSearch>
       <div className={styles.tableWrapper}>
         {tableStatus === "initializing" && <div>초기화 중...</div>}
-        {loading && <div>로딩 중...</div>}
+        {loading && <div>{loadingMessage}</div>} {/* [수정] 로딩 메시지 동적 표시 */}
         <div
           ref={tableRef}
           className={styles.tableSection}
